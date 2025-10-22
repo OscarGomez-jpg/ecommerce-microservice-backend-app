@@ -1,0 +1,135 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKER_USERNAME = "${DOCKER_HUB_CREDENTIALS_USR}"
+        MAVEN_OPTS = '-Xmx2048m'
+    }
+
+    parameters {
+        choice(name: 'SERVICE', choices: ['user-service', 'product-service', 'order-service', 'payment-service', 'shipping-service', 'favourite-service'], description: 'Select microservice to build')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    env.BUILD_TIMESTAMP = sh(returnStdout: true, script: 'date +%Y%m%d-%H%M%S').trim()
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir("${params.SERVICE}") {
+                    sh '''
+                        echo "Building ${SERVICE} with Java 11 (Docker)..."
+                        # Compile using Docker to ensure Java 11 compatibility
+                        docker run --rm \
+                            -v "$(pwd)/..":/usr/src/app \
+                            -v "$HOME/.m2":/root/.m2 \
+                            -w /usr/src/app/${SERVICE} \
+                            maven:3.8.6-openjdk-11 \
+                            mvn clean package -DskipTests -Dmaven.test.skip=true
+                    '''
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                dir("${params.SERVICE}") {
+                    sh '''
+                        echo "Running unit tests for ${SERVICE} with Java 11..."
+                        docker run --rm \
+                            -v "$(pwd)/..":/usr/src/app \
+                            -v "$HOME/.m2":/root/.m2 \
+                            -w /usr/src/app/${SERVICE} \
+                            maven:3.8.6-openjdk-11 \
+                            mvn test
+                    '''
+                }
+            }
+            post {
+                always {
+                    junit "**/target/surefire-reports/*.xml"
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    dir("${params.SERVICE}") {
+                        sh """
+                            echo "Building Docker image for ${SERVICE}..."
+                            docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-${GIT_COMMIT_SHORT} \
+                                -f Dockerfile .
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    sh '''
+                        echo "${DOCKER_HUB_CREDENTIALS_PSW}" | docker login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
+                        docker push ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-${GIT_COMMIT_SHORT}
+                        docker tag ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-${GIT_COMMIT_SHORT} \
+                            ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-latest
+                        docker push ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-latest
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Docker Compose') {
+            steps {
+                sh '''
+                    echo "Deploying ${SERVICE} to Docker Compose..."
+                    docker-compose -f compose.yml up -d ${SERVICE}-container
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                script {
+                    def servicePort = [
+                        'user-service': '8700',
+                        'product-service': '8500',
+                        'order-service': '8300',
+                        'payment-service': '8400',
+                        'shipping-service': '8600',
+                        'favourite-service': '8800'
+                    ][params.SERVICE]
+
+                    sh """
+                        echo "Waiting for ${SERVICE} to be healthy..."
+                        timeout 60 sh -c 'until curl -f http://localhost:${servicePort}/actuator/health; do sleep 5; done'
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline for ${params.SERVICE} completed successfully!"
+            slackSend(color: 'good', message: "DEV Deploy Success: ${params.SERVICE} - Build #${BUILD_NUMBER}")
+        }
+        failure {
+            echo "Pipeline for ${params.SERVICE} failed!"
+            slackSend(color: 'danger', message: "DEV Deploy Failed: ${params.SERVICE} - Build #${BUILD_NUMBER}")
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

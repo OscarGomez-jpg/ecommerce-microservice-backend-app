@@ -62,6 +62,15 @@ spring:
         predicates:
         - Path=/app/**
 
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    preferIpAddress: true
+
 resilience4j:
   circuitbreaker:
     instances:

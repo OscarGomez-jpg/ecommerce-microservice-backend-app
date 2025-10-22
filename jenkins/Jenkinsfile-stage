@@ -1,0 +1,152 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKER_USERNAME = "${DOCKER_HUB_CREDENTIALS_USR}"
+        KUBECONFIG = credentials('kubeconfig-minikube')
+        MAVEN_OPTS = '-Xmx2048m'
+        NAMESPACE = 'stage'
+    }
+
+    parameters {
+        choice(name: 'SERVICE', choices: ['user-service', 'product-service', 'order-service', 'payment-service', 'shipping-service', 'favourite-service'], description: 'Select microservice to build')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    env.BUILD_TIMESTAMP = sh(returnStdout: true, script: 'date +%Y%m%d-%H%M%S').trim()
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir("${params.SERVICE}") {
+                    sh '''
+                        echo "Building ${SERVICE}..."
+                        ../mvnw clean package -DskipTests
+                    '''
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                dir("${params.SERVICE}") {
+                    sh '''
+                        echo "Running unit tests for ${SERVICE}..."
+                        ../mvnw test
+                    '''
+                }
+            }
+            post {
+                always {
+                    junit "**/target/surefire-reports/*.xml"
+                }
+            }
+        }
+
+        stage('Integration Tests') {
+            steps {
+                dir("${params.SERVICE}") {
+                    sh '''
+                        echo "Running integration tests for ${SERVICE}..."
+                        ../mvnw verify -Pintegration-tests
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    dir("${params.SERVICE}") {
+                        sh """
+                            echo "Building Docker image for ${SERVICE}..."
+                            docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:stage-${GIT_COMMIT_SHORT} \
+                                --build-arg PROJECT_VERSION=0.1.0 \
+                                -f Dockerfile ..
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    sh '''
+                        echo "${DOCKER_HUB_CREDENTIALS_PSW}" | docker login -u "${DOCKER_HUB_CREDENTIALS_USR}" --password-stdin
+                        docker push ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:stage-${GIT_COMMIT_SHORT}
+                        docker tag ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:stage-${GIT_COMMIT_SHORT} \
+                            ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:stage-latest
+                        docker push ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:stage-latest
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh """
+                        echo "Deploying ${SERVICE} to Kubernetes (${NAMESPACE})..."
+                        kubectl set image deployment/${SERVICE} \
+                            ${SERVICE}=${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:stage-${GIT_COMMIT_SHORT} \
+                            -n ${NAMESPACE}
+                        kubectl rollout status deployment/${SERVICE} -n ${NAMESPACE}
+                    """
+                }
+            }
+        }
+
+        stage('E2E Tests') {
+            steps {
+                script {
+                    sh '''
+                        echo "Running E2E tests..."
+                        cd tests/e2e
+                        npm install
+                        npm run test:e2e
+                    '''
+                }
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                script {
+                    sh """
+                        echo "Verifying ${SERVICE} health in Kubernetes..."
+                        kubectl wait --for=condition=ready pod -l app=${SERVICE} -n ${NAMESPACE} --timeout=300s
+                        kubectl get pods -n ${NAMESPACE} -l app=${SERVICE}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline for ${params.SERVICE} completed successfully!"
+            slackSend(color: 'good', message: "STAGE Deploy Success: ${params.SERVICE} - Build #${BUILD_NUMBER}")
+        }
+        failure {
+            echo "Pipeline for ${params.SERVICE} failed!"
+            slackSend(color: 'danger', message: "STAGE Deploy Failed: ${params.SERVICE} - Build #${BUILD_NUMBER}")
+            sh """
+                echo "Rolling back ${SERVICE}..."
+                kubectl rollout undo deployment/${SERVICE} -n ${NAMESPACE}
+            """
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
