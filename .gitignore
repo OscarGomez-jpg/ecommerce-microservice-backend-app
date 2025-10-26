@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### AWS Deployment ###
+.aws-k3s-deployment.conf
+*.pem
+*.key
+
+### Secrets ###
+.env
+credentials.json
+secrets.yaml

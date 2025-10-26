@@ -181,10 +181,239 @@ Formato:
 
 ## Costos AWS (Free Tier)
 
-- EKS: Control plane gratis (primer cluster)
-- EC2: t3.medium (750 horas/mes gratis primer año)
-- ELB: Load balancer (750 horas/mes gratis)
-- EBS: 30 GB gratis
+### Opcion 1: EKS (Kubernetes Administrado) - NO RECOMENDADO para Free Tier
+
+IMPORTANTE: El control plane de EKS NO es gratis.
+
+- EKS Control Plane: $73/mes ($0.10/hora) - SIEMPRE se cobra
+- EC2: t3.medium (2 nodos): $60-120/mes
+- ELB: Load balancer (750 horas/mes gratis primer año, luego ~$16/mes)
+- EBS: 30 GB gratis, adicionales ~$1/GB/mes
+
+**Costo total estimado EKS**: $94-168/mes minimo
+
+### Opcion 2: k3s en EC2 (Kubernetes Ligero) - RECOMENDADO para Free Tier
+
+Alternativa economica para deployments temporales:
+
+- EC2 t2.small: $0.023/hora = $16.56/mes (si corre 24/7)
+- EBS: 8 GB incluido
+- Sin cargos de control plane
+- Sin cargos de load balancer (NodePort)
+
+**Costo para deployment temporal (72 horas)**: $1.66
+
+Ver [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) para instrucciones completas.
+
+## Despliegue en AWS con k3s (Deployment Temporal)
+
+### Descripcion
+
+Opcion optimizada para despliegues temporales de 72 horas en AWS usando k3s (Kubernetes ligero) en lugar de EKS. Ideal para:
+- Demostraciones academicas
+- Pruebas de integracion en nube
+- Validacion de arquitectura de microservicios
+- Costos minimos (98% mas economico que EKS)
+
+### Requisitos
+
+- AWS CLI configurado con credenciales validas
+- Acceso a instancias EC2 t2.small o superiores
+- Permisos para crear Security Groups, Key Pairs e Instancias
+- 72 horas de tiempo de deployment planificado
+
+### Scripts Disponibles
+
+#### 1. Despliegue Automatizado
+
+```bash
+./scripts/aws-k3s-deploy.sh
+```
+
+Este script ejecuta automaticamente:
+- Crea instancia EC2 t2.small con Ubuntu 22.04
+- Configura Security Groups (puertos 22, 6443, 8080, 8761, 9411)
+- Genera y configura SSH key pair
+- Instala k3s automaticamente
+- Despliega los 6 microservicios optimizados
+- Configura NodePort para acceso externo
+
+Tiempo estimado: 5-10 minutos
+Salida: IP publica, URLs de servicios, comandos de acceso
+
+#### 2. Monitoreo de Estado y Costos
+
+```bash
+./scripts/aws-k3s-status.sh
+```
+
+Muestra:
+- Tiempo activo del deployment
+- Costo acumulado actual
+- Costo proyectado para 72 horas
+- Estado de instancia EC2
+- Estado de pods en k3s
+- URLs de acceso a servicios
+
+#### 3. Eliminacion de Recursos
+
+```bash
+./scripts/aws-k3s-destroy.sh
+```
+
+IMPORTANTE: Ejecutar cuando termines para detener cargos.
+
+Elimina:
+- Instancia EC2 (termination completa)
+- Security Groups
+- Key Pairs
+- Archivos de configuracion local
+
+Requiere confirmacion explicita escribiendo: `ELIMINAR`
+
+#### 4. Verificacion de Limpieza
+
+```bash
+./scripts/aws-k3s-verify.sh
+```
+
+Verifica que NO quedan recursos generando costos:
+- Instancias EC2 (running, stopped o terminated)
+- Security Groups residuales
+- Volumenes EBS huerfanos
+- Calculo de costos por hora actual
+
+### Arquitectura Desplegada en AWS
+
+```
+EC2 t2.small (2GB RAM, 1 vCPU) - IP Publica
+├── k3s server (~200MB)
+├── Namespace: ecommerce
+│   ├── service-discovery (Eureka) - NodePort 30761
+│   ├── api-gateway - NodePort 30080
+│   ├── zipkin - NodePort 30411
+│   ├── user-service - ClusterIP 8700
+│   ├── product-service - ClusterIP 8500
+│   └── order-service - ClusterIP 8300
+└── Total RAM usado: ~1.8GB (deja 200MB libres)
+
+Acceso externo:
+- http://[IP-PUBLICA]:30761 - Eureka Dashboard
+- http://[IP-PUBLICA]:30080 - API Gateway
+- http://[IP-PUBLICA]:30411 - Zipkin UI
+```
+
+### Optimizaciones Aplicadas
+
+Para que los 6 microservicios quepan en 2GB de RAM:
+
+1. **Limites de memoria Java**:
+```yaml
+env:
+- name: JAVA_OPTS
+  value: "-Xmx256m -Xms128m"
+```
+
+2. **Limites de recursos Kubernetes**:
+```yaml
+resources:
+  requests:
+    memory: "250Mi"
+    cpu: "100m"
+  limits:
+    memory: "350Mi"
+    cpu: "200m"
+```
+
+3. **Reduccion de replicas**: 1 replica por servicio (vs 2-10 en produccion)
+
+### Costos y Timeline
+
+| Tiempo | Costo Acumulado |
+|--------|-----------------|
+| 1 hora | $0.02 |
+| 8 horas | $0.18 |
+| 24 horas | $0.55 |
+| 48 horas | $1.10 |
+| **72 horas** | **$1.66** |
+| 1 semana | $3.86 |
+| 1 mes | $16.56 |
+
+### Comandos Rapidos
+
+```bash
+# Desplegar
+./scripts/aws-k3s-deploy.sh
+
+# Ver estado y costos
+./scripts/aws-k3s-status.sh
+
+# Conectarse via SSH
+ssh -i ~/.ssh/ecommerce-k3s-key.pem ubuntu@[IP-PUBLICA]
+
+# Ver pods dentro de la instancia
+ssh -i ~/.ssh/ecommerce-k3s-key.pem ubuntu@[IP-PUBLICA] \
+  "sudo k3s kubectl get pods -n ecommerce"
+
+# Eliminar cuando termines
+./scripts/aws-k3s-destroy.sh
+
+# Verificar limpieza
+./scripts/aws-k3s-verify.sh
+```
+
+### Checklist de Deployment
+
+**Pre-deployment**:
+- [ ] AWS CLI configurado (`aws sts get-caller-identity`)
+- [ ] Credenciales con permisos EC2
+- [ ] Scripts con permisos de ejecucion (`chmod +x scripts/*.sh`)
+- [ ] Region AWS seleccionada (recomendado: us-east-1)
+
+**Post-deployment**:
+- [ ] Instancia EC2 corriendo
+- [ ] 6 pods en estado "Running"
+- [ ] Eureka accesible y mostrando 6 servicios
+- [ ] API Gateway respondiendo
+- [ ] Zipkin UI accesible
+
+**Pre-destroy**:
+- [ ] Screenshots capturados
+- [ ] Logs exportados (si necesarios)
+- [ ] Datos respaldados
+- [ ] Confirmas que eliminar es PERMANENTE
+
+**Post-destroy**:
+- [ ] Instancia terminada
+- [ ] No hay security groups residuales
+- [ ] No hay volumenes huerfanos
+- [ ] Costo por hora = $0.00
+
+### Troubleshooting Comun
+
+Ver [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) - Seccion Troubleshooting para:
+- Pods en estado Pending/CrashLoopBackOff
+- Puertos inaccesibles
+- Servicios no registran en Eureka
+- Costos inesperados
+- Errores de deployment
+
+### Comparacion: k3s vs EKS en AWS
+
+| Caracteristica | k3s en EC2 | EKS |
+|----------------|------------|-----|
+| **Costo (72h)** | $1.66 | $226.00 |
+| **Setup** | 5-10 min | 15-30 min |
+| **RAM minima** | 2GB | 4GB+ |
+| **Para produccion** | No | Si |
+| **Para academico** | Ideal | Overkill |
+| **Free tier friendly** | Si | No |
+
+### Documentacion Completa
+
+Para guia paso a paso detallada, troubleshooting exhaustivo y FAQ:
+
+Ver: [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md)
 
 ## Configuraciones Manuales Requeridas
 
