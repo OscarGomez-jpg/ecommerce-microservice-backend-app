@@ -4,6 +4,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,11 +47,14 @@ public class UserResource {
 	
 	@PostMapping
 	public ResponseEntity<UserDto> save(
-			@RequestBody 
-			@NotNull(message = "Input must not NULL") 
+			@RequestBody
+			@NotNull(message = "Input must not NULL")
 			@Valid final UserDto userDto) {
 		log.info("*** UserDto, resource; save user *");
-		return ResponseEntity.ok(this.userService.save(userDto));
+		UserDto savedUser = this.userService.save(userDto);
+		return ResponseEntity
+				.status(HttpStatus.CREATED)
+				.body(savedUser);
 	}
 	
 	@PutMapping
