@@ -1,0 +1,590 @@
+{
+	"info": {
+		"_postman_id": "ecommerce-minikube-tests",
+		"name": "Ecommerce Minikube - Auto Tests",
+		"description": "Colección auto-ejecutable para probar microservicios en Minikube.\n\nLos tests extraen IDs automáticamente y los usan en requests siguientes.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Checks",
+			"item": [
+				{
+					"name": "Eureka - Check Services",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Eureka is UP\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Services are registered\", function () {",
+									"    var xmlString = pm.response.text();",
+									"    pm.expect(xmlString).to.include('API-GATEWAY');",
+									"    pm.expect(xmlString).to.include('USER-SERVICE');",
+									"    pm.expect(xmlString).to.include('PRODUCT-SERVICE');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30761/eureka/apps",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30761",
+							"path": [
+								"eureka",
+								"apps"
+							]
+						}
+					}
+				},
+				{
+					"name": "API Gateway Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"API Gateway is UP\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('UP');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/actuator/health",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"actuator",
+								"health"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. User Service",
+			"item": [
+				{
+					"name": "List All Users",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Users list is returned\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.collection).to.be.an('array');",
+									"    ",
+									"    if (jsonData.collection.length > 0) {",
+									"        // Guardar el primer userId para usar en otros tests",
+									"        pm.environment.set('firstUserId', jsonData.collection[0].userId);",
+									"        console.log('Saved userId:', jsonData.collection[0].userId);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/user-service/api/users",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"user-service",
+								"api",
+								"users"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get User by ID (Auto)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"User details returned\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.userId).to.exist;",
+									"    pm.expect(jsonData.firstName).to.exist;",
+									"    pm.expect(jsonData.credential).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Si no hay firstUserId guardado, usar 1 por defecto",
+									"if (!pm.environment.get('firstUserId')) {",
+									"    pm.environment.set('firstUserId', 1);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/user-service/api/users/{{firstUserId}}",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{firstUserId}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create New User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"User created successfully\", function () {",
+									"    pm.response.to.have.status(201);",
+									"    var jsonData = pm.response.json();",
+									"    ",
+									"    // Guardar el userId del usuario recién creado",
+									"    pm.environment.set('newUserId', jsonData.userId);",
+									"    console.log('Created user with ID:', jsonData.userId);",
+									"    ",
+									"    pm.expect(jsonData.firstName).to.eql('Juan');",
+									"    pm.expect(jsonData.lastName).to.eql('Perez');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generar datos aleatorios",
+									"var randomInt = Math.floor(Math.random() * 10000);",
+									"pm.environment.set('randomUsername', 'user' + randomInt);",
+									"pm.environment.set('randomEmail', 'user' + randomInt + '@test.com');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\",\n  \"imageUrl\": \"https://example.com/avatar.png\",\n  \"email\": \"{{randomEmail}}\",\n  \"phone\": \"+573001234567\",\n  \"addressDtos\": [\n    {\n      \"fullAddress\": \"Calle 123 #45-67\",\n      \"postalCode\": \"760001\",\n      \"city\": \"Cali\"\n    }\n  ],\n  \"credential\": {\n    \"username\": \"{{randomUsername}}\",\n    \"password\": \"password123\",\n    \"roleBasedAuthority\": \"ROLE_USER\",\n    \"isEnabled\": true,\n    \"isAccountNonExpired\": true,\n    \"isAccountNonLocked\": true,\n    \"isCredentialsNonExpired\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/user-service/api/users",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"user-service",
+								"api",
+								"users"
+							]
+						}
+					}
+				},
+				{
+					"name": "Verify New User Created",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"New user exists\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.userId).to.eql(parseInt(pm.environment.get('newUserId')));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/user-service/api/users/{{newUserId}}",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{newUserId}}"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Product Service",
+			"item": [
+				{
+					"name": "List All Products",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Products list returned\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.collection).to.be.an('array');",
+									"    ",
+									"    if (jsonData.collection.length > 0) {",
+									"        // Guardar primer productId",
+									"        pm.environment.set('firstProductId', jsonData.collection[0].productId);",
+									"        console.log('Saved productId:', jsonData.collection[0].productId);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/product-service/api/products",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"product-service",
+								"api",
+								"products"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Product by ID (Auto)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product details returned\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.productId).to.exist;",
+									"    pm.expect(jsonData.productTitle).to.exist;",
+									"    pm.expect(jsonData.category).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"if (!pm.environment.get('firstProductId')) {",
+									"    pm.environment.set('firstProductId', 1);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/product-service/api/products/{{firstProductId}}",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"product-service",
+								"api",
+								"products",
+								"{{firstProductId}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "List Categories",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Categories returned\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.collection).to.be.an('array');",
+									"    ",
+									"    if (jsonData.collection.length > 0) {",
+									"        pm.environment.set('firstCategoryId', jsonData.collection[0].categoryId);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/product-service/api/categories",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"product-service",
+								"api",
+								"categories"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Order Service",
+			"item": [
+				{
+					"name": "List All Orders",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Orders list returned\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.collection).to.be.an('array');",
+									"    ",
+									"    if (jsonData.collection.length > 0) {",
+									"        pm.environment.set('firstOrderId', jsonData.collection[0].orderId);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/order-service/api/orders",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"order-service",
+								"api",
+								"orders"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Order by ID (Auto)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Order details returned\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.orderId).to.exist;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"if (!pm.environment.get('firstOrderId')) {",
+									"    pm.environment.set('firstOrderId', 1);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/order-service/api/orders/{{firstOrderId}}",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"order-service",
+								"api",
+								"orders",
+								"{{firstOrderId}}"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Integration Tests",
+			"item": [
+				{
+					"name": "Complete Flow - Create User + Order",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Asegurar que tenemos IDs necesarios",
+									"if (!pm.environment.get('newUserId')) {",
+									"    console.log('Warning: newUserId not set, using firstUserId');",
+									"    pm.environment.set('newUserId', pm.environment.get('firstUserId') || 1);",
+									"}",
+									"if (!pm.environment.get('firstProductId')) {",
+									"    pm.environment.set('firstProductId', 1);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Integration flow successful\", function () {",
+									"    console.log('All microservices are working together!');",
+									"    console.log('User ID used:', pm.environment.get('newUserId'));",
+									"    console.log('Product ID used:', pm.environment.get('firstProductId'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://{{MINIKUBE_IP}}:30080/user-service/api/users/{{newUserId}}",
+							"protocol": "http",
+							"host": [
+								"{{MINIKUBE_IP}}"
+							],
+							"port": "30080",
+							"path": [
+								"user-service",
+								"api",
+								"users",
+								"{{newUserId}}"
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
