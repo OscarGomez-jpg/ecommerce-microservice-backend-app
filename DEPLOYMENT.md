@@ -1,6 +1,7 @@
 # Plan Maestro de Despliegue - E-Commerce Microservices
 
 ## Tabla de Contenidos
+
 1. [Microservicios Seleccionados](#microservicios-seleccionados)
 2. [Arquitectura de Despliegue](#arquitectura-de-despliegue)
 3. [Pipelines Jenkins](#pipelines-jenkins)
@@ -52,6 +53,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 ## Pipelines Jenkins
 
 ### Pipeline 1: DEV Environment
+
 - Trigger: Push a rama develop
 - Build con Maven
 - Ejecucion de pruebas unitarias
@@ -59,6 +61,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 - Deploy a Docker Compose local
 
 ### Pipeline 2: STAGE Environment
+
 - Trigger: Push a rama stage
 - Build con Maven
 - Ejecucion de pruebas unitarias e integracion
@@ -67,6 +70,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 - Ejecucion de pruebas E2E
 
 ### Pipeline 3: MASTER Environment (Production)
+
 - Trigger: Merge a rama master
 - Build con Maven
 - Ejecucion de todas las pruebas
@@ -79,6 +83,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 ## Pruebas Implementadas
 
 ### Pruebas Unitarias (5+)
+
 - UserServiceTest: validacion de creacion de usuarios
 - ProductServiceTest: validacion de CRUD de productos
 - OrderServiceTest: validacion de creacion de ordenes
@@ -86,6 +91,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 - ShippingServiceTest: validacion de calculo de costos de envio
 
 ### Pruebas de Integracion (5+)
+
 - UserProductIntegrationTest: usuario consulta productos
 - OrderCreationIntegrationTest: creacion de orden con productos
 - PaymentOrderIntegrationTest: pago asociado a orden
@@ -93,6 +99,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 - FavouriteUserProductIntegrationTest: favoritos de usuario
 
 ### Pruebas E2E (5+)
+
 - CompleteCheckoutFlowTest: flujo completo de compra
 - UserRegistrationAndPurchaseTest: registro y compra
 - ProductSearchAndFavouriteTest: busqueda y favoritos
@@ -100,6 +107,7 @@ Commit -> Jenkins Pipeline -> Build -> Unit Tests -> Integration Tests
 - RefundFlowTest: flujo de reembolso
 
 ### Pruebas de Rendimiento (Locust)
+
 - Carga de 100 usuarios concurrentes
 - Simulacion de flujo de compra completo
 - Metricas: tiempo de respuesta, throughput, tasa de errores
@@ -132,6 +140,7 @@ k8s/
 ## Configuracion de Entornos
 
 ### Local (Minikube)
+
 ```bash
 minikube start --cpus=4 --memory=8192
 kubectl apply -f k8s/namespaces/dev-namespace.yaml
@@ -140,6 +149,7 @@ kubectl apply -f k8s/services/
 ```
 
 ### AWS EKS (Free Tier)
+
 ```bash
 eksctl create cluster \
   --name ecommerce-cluster \
@@ -154,11 +164,13 @@ eksctl create cluster \
 ## Release Notes Automaticas
 
 Las release notes se generan automaticamente usando:
+
 - Commits convencionales (conventional commits)
 - Changelog generado por pipeline
 - Version semantica automatica (SemVer)
 
 Formato:
+
 ```
 ## Version X.Y.Z - YYYY-MM-DD
 
@@ -210,6 +222,7 @@ Ver [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) para instrucciones comple
 ### Descripcion
 
 Opcion optimizada para despliegues temporales de 72 horas en AWS usando k3s (Kubernetes ligero) en lugar de EKS. Ideal para:
+
 - Demostraciones academicas
 - Pruebas de integracion en nube
 - Validacion de arquitectura de microservicios
@@ -231,6 +244,7 @@ Opcion optimizada para despliegues temporales de 72 horas en AWS usando k3s (Kub
 ```
 
 Este script ejecuta automaticamente:
+
 - Crea instancia EC2 t2.small con Ubuntu 22.04
 - Configura Security Groups (puertos 22, 6443, 8080, 8761, 9411)
 - Genera y configura SSH key pair
@@ -248,6 +262,7 @@ Salida: IP publica, URLs de servicios, comandos de acceso
 ```
 
 Muestra:
+
 - Tiempo activo del deployment
 - Costo acumulado actual
 - Costo proyectado para 72 horas
@@ -264,6 +279,7 @@ Muestra:
 IMPORTANTE: Ejecutar cuando termines para detener cargos.
 
 Elimina:
+
 - Instancia EC2 (termination completa)
 - Security Groups
 - Key Pairs
@@ -278,6 +294,7 @@ Requiere confirmacion explicita escribiendo: `ELIMINAR`
 ```
 
 Verifica que NO quedan recursos generando costos:
+
 - Instancias EC2 (running, stopped o terminated)
 - Security Groups residuales
 - Volumenes EBS huerfanos
@@ -308,6 +325,7 @@ Acceso externo:
 Para que los 6 microservicios quepan en 2GB de RAM:
 
 1. **Limites de memoria Java**:
+
 ```yaml
 env:
 - name: JAVA_OPTS
@@ -315,6 +333,7 @@ env:
 ```
 
 2. **Limites de recursos Kubernetes**:
+
 ```yaml
 resources:
   requests:
@@ -365,12 +384,14 @@ ssh -i ~/.ssh/ecommerce-k3s-key.pem ubuntu@[IP-PUBLICA] \
 ### Checklist de Deployment
 
 **Pre-deployment**:
+
 - [ ] AWS CLI configurado (`aws sts get-caller-identity`)
 - [ ] Credenciales con permisos EC2
 - [ ] Scripts con permisos de ejecucion (`chmod +x scripts/*.sh`)
 - [ ] Region AWS seleccionada (recomendado: us-east-1)
 
 **Post-deployment**:
+
 - [ ] Instancia EC2 corriendo
 - [ ] 6 pods en estado "Running"
 - [ ] Eureka accesible y mostrando 6 servicios
@@ -378,12 +399,14 @@ ssh -i ~/.ssh/ecommerce-k3s-key.pem ubuntu@[IP-PUBLICA] \
 - [ ] Zipkin UI accesible
 
 **Pre-destroy**:
+
 - [ ] Screenshots capturados
 - [ ] Logs exportados (si necesarios)
 - [ ] Datos respaldados
 - [ ] Confirmas que eliminar es PERMANENTE
 
 **Post-destroy**:
+
 - [ ] Instancia terminada
 - [ ] No hay security groups residuales
 - [ ] No hay volumenes huerfanos
@@ -392,6 +415,7 @@ ssh -i ~/.ssh/ecommerce-k3s-key.pem ubuntu@[IP-PUBLICA] \
 ### Troubleshooting Comun
 
 Ver [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) - Seccion Troubleshooting para:
+
 - Pods en estado Pending/CrashLoopBackOff
 - Puertos inaccesibles
 - Servicios no registran en Eureka
@@ -418,6 +442,7 @@ Ver: [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md)
 ## Configuraciones Manuales Requeridas
 
 Ver archivo MANUAL_CONFIG.md para:
+
 1. Configuracion de cuenta AWS
 2. Instalacion de Jenkins
 3. Configuracion de Docker Hub
@@ -431,10 +456,13 @@ Ver archivo MANUAL_CONFIG.md para:
 ### Despliegue Local con Docker Compose (Recomendado)
 
 **Opcion 1 - Despliegue automatico completo**:
+
 ```bash
 ./scripts/deploy-simple.sh
 ```
+
 Este script ejecuta todo el proceso automaticamente:
+
 1. Detiene contenedores existentes
 2. Compila servicios con Java 11 (usando Docker)
 3. Construye imagenes Docker localmente
@@ -443,6 +471,7 @@ Este script ejecuta todo el proceso automaticamente:
 6. Verifica registro en Eureka
 
 **Opcion 2 - Pasos manuales**:
+
 ```bash
 # 1. Compilar servicios (usa Java 11 en Docker)
 ./scripts/build-with-docker.sh
@@ -458,14 +487,16 @@ docker compose up -d
 ```
 
 **Acceso a servicios desplegados**:
-- Eureka Dashboard: http://localhost:8761
-- Zipkin Tracing: http://localhost:9411
-- API Gateway: http://localhost:8080
-- User Service: http://localhost:8700/user-service/actuator/health
-- Product Service: http://localhost:8500/product-service/actuator/health
-- Order Service: http://localhost:8300/order-service/actuator/health
+
+- Eureka Dashboard: <http://localhost:8761>
+- Zipkin Tracing: <http://localhost:9411>
+- API Gateway: <http://localhost:8080>
+- User Service: <http://localhost:8700/user-service/actuator/health>
+- Product Service: <http://localhost:8500/product-service/actuator/health>
+- Order Service: <http://localhost:8300/order-service/actuator/health>
 
 **Comandos utiles Docker Compose**:
+
 ```bash
 # Ver logs de todos los servicios
 docker compose logs -f
@@ -492,11 +523,13 @@ docker compose ps
 ```
 
 ### AWS (Pendiente de implementacion)
+
 ```bash
 ./scripts/deploy-aws.sh
 ```
 
 ### Destruir recursos
+
 ```bash
 ./scripts/cleanup-aws.sh
 ```
@@ -514,12 +547,14 @@ Durante el proceso de despliegue local se encontraron y resolvieron los siguient
 **Problema**: El proyecto requiere Java 11, pero el sistema tenia Java 21 instalado. Lombok genera errores de compilacion con Java 21.
 
 **Error Observado**:
+
 ```
 Fatal error compiling: java.lang.NoSuchFieldError: Class com.sun.tools.javac.tree.JCTree$JCImport
 does not have member field 'com.sun.tools.javac.tree.JCTree qualid'
 ```
 
 **Solucion Implementada**:
+
 - Creado script `scripts/build-with-docker.sh` que compila el proyecto usando Maven 3.8.6 con OpenJDK 11 dentro de un contenedor Docker
 - Esto evita modificar la instalacion de Java del sistema del usuario
 - El script ejecuta: `docker run maven:3.8.6-openjdk-11 mvn clean package -DskipTests`
@@ -531,6 +566,7 @@ does not have member field 'com.sun.tools.javac.tree.JCTree qualid'
 **Problema**: Los microservicios iniciaban correctamente pero no aparecian registrados en el dashboard de Eureka.
 
 **Causa Raiz**:
+
 - En Docker Compose, cada contenedor tiene su propio `localhost`
 - Los servicios intentaban conectarse a `localhost:8761` pero Eureka estaba en otro contenedor
 - Los archivos `application.yml` no tenian configuracion explicita de Eureka client
@@ -538,6 +574,7 @@ does not have member field 'com.sun.tools.javac.tree.JCTree qualid'
 **Solucion Implementada (2 partes)**:
 
 **Parte A - Variables de Entorno en compose.yml**:
+
 ```yaml
 environment:
   - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka
@@ -546,6 +583,7 @@ environment:
 
 **Parte B - Configuracion de Eureka en application.yml**:
 Agregada la siguiente configuracion en todos los microservicios:
+
 ```yaml
 eureka:
   client:
@@ -558,6 +596,7 @@ eureka:
 ```
 
 **Archivos Modificados**:
+
 - [user-service/src/main/resources/application.yml](user-service/src/main/resources/application.yml)
 - [product-service/src/main/resources/application.yml](product-service/src/main/resources/application.yml)
 - [order-service/src/main/resources/application.yml](order-service/src/main/resources/application.yml)
@@ -568,6 +607,7 @@ eureka:
 **Problema**: Al ejecutar `docker compose build`, fallaba con errores de archivos no encontrados.
 
 **Causa Raiz**: Los Dockerfiles originales estaban diseñados para ejecutarse desde la raiz del proyecto con rutas como:
+
 ```dockerfile
 COPY order-service/ .
 ADD order-service/target/order-service-v${PROJECT_VERSION}.jar order-service.jar
@@ -578,6 +618,7 @@ Pero el `compose.yml` usaba contextos individuales: `context: ./order-service`
 **Solucion Implementada**: Simplificacion de todos los Dockerfiles:
 
 **Antes**:
+
 ```dockerfile
 FROM openjdk:11
 ARG PROJECT_VERSION=0.1.0
@@ -591,6 +632,7 @@ ENTRYPOINT ["java", "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}", "-jar"
 ```
 
 **Despues**:
+
 ```dockerfile
 FROM openjdk:11-jre-slim
 WORKDIR /app
@@ -600,11 +642,13 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
 **Beneficios**:
+
 - Imagenes mas pequeñas (openjdk:11-jre-slim vs openjdk:11 completo)
 - Compatibilidad con build contexts de Docker Compose
 - Mas simple y mantenible
 
 **Archivos Modificados**:
+
 - [service-discovery/Dockerfile](service-discovery/Dockerfile)
 - [api-gateway/Dockerfile](api-gateway/Dockerfile)
 - [user-service/Dockerfile](user-service/Dockerfile)
@@ -616,6 +660,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 **Problema**: El archivo original usaba imagenes de Docker Hub que no contenian las configuraciones actualizadas.
 
 **Solucion Implementada**: Reescritura completa de [compose.yml](compose.yml):
+
 - Cambiado de `image:` a `build:` para construccion local
 - Reduccion de 10 servicios a 6 servicios esenciales
 - Agregada red Docker personalizada (`microservices-network`)
@@ -623,6 +668,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 - Removido atributo obsoleto `version: '3'`
 
 **Estructura Final del compose.yml**:
+
 ```yaml
 services:
   zipkin:
@@ -691,7 +737,9 @@ networks:
 Para facilitar el despliegue, se crearon los siguientes scripts:
 
 #### 1. scripts/build-with-docker.sh
+
 Compila el proyecto usando Maven con Java 11 dentro de Docker:
+
 ```bash
 #!/bin/bash
 docker run --rm \
@@ -703,7 +751,9 @@ docker run --rm \
 ```
 
 #### 2. scripts/deploy-simple.sh
+
 Deployment automatizado completo:
+
 - Detiene contenedores existentes
 - Compila con Java 11
 - Construye imagenes Docker
@@ -712,13 +762,15 @@ Deployment automatizado completo:
 - Verifica registro en Eureka
 
 #### 3. scripts/verify-deployment.sh
+
 Verifica el estado de todos los servicios y consulta Eureka para listar servicios registrados.
 
 ### Verificacion del Despliegue Exitoso
 
 Despues de ejecutar `./scripts/deploy-simple.sh`, se puede verificar:
 
-**1. Dashboard de Eureka** (http://localhost:8761):
+**1. Dashboard de Eureka** (<http://localhost:8761>):
+
 ```
 Instances currently registered with Eureka:
 - API-GATEWAY (1 instance)
@@ -728,6 +780,7 @@ Instances currently registered with Eureka:
 ```
 
 **2. Contenedores Docker Corriendo**:
+
 ```bash
 $ docker compose ps
 NAME                            STATUS
@@ -740,31 +793,36 @@ order-service-container         Up
 ```
 
 **3. Endpoints Funcionales**:
-- http://localhost:8761 - Eureka Dashboard
-- http://localhost:9411 - Zipkin UI
-- http://localhost:8080/user-service/actuator/health - Health check via API Gateway
-- http://localhost:8700/user-service/actuator/health - Health check directo
+
+- <http://localhost:8761> - Eureka Dashboard
+- <http://localhost:9411> - Zipkin UI
+- <http://localhost:8080/user-service/actuator/health> - Health check via API Gateway
+- <http://localhost:8700/user-service/actuator/health> - Health check directo
 
 ### Comandos de Mantenimiento
 
 **Ver logs en tiempo real**:
+
 ```bash
 docker compose logs -f
 docker logs user-service-container -f
 ```
 
 **Reiniciar un servicio especifico**:
+
 ```bash
 docker compose restart user-service
 ```
 
 **Detener y limpiar todo**:
+
 ```bash
 docker compose down
 docker stop $(docker ps -aq) 2>/dev/null || true
 ```
 
 **Reconstruir un servicio**:
+
 ```bash
 docker compose build --no-cache user-service
 docker compose up -d user-service
@@ -780,11 +838,13 @@ docker compose up -d user-service
 ### Recursos Necesarios
 
 **Minimos**:
+
 - RAM: 4 GB
 - CPU: 2 cores
 - Disco: 10 GB
 
 **Recomendados**:
+
 - RAM: 8 GB
 - CPU: 4 cores
 - Disco: 20 GB
@@ -794,6 +854,7 @@ docker compose up -d user-service
 Ver archivo [DEBUG_REPORT.md](DEBUG_REPORT.md) para detalles completos de problemas encontrados y soluciones.
 
 **Problema comun**: "Puerto ya en uso"
+
 ```bash
 # Detener todos los contenedores Docker
 docker compose down
@@ -804,6 +865,7 @@ ss -tulpn | grep -E ':(8761|8080|8700|8500|8300|9411)'
 ```
 
 **Problema comun**: "Servicios no aparecen en Eureka"
+
 ```bash
 # Esperar 40-60 segundos despues del inicio
 sleep 40
@@ -829,6 +891,7 @@ Los cambios realizados para el despliegue local se han propagado a TODOS los amb
 **Cambios aplicados**:
 
 **Stage 'Build'** - Líneas 25-40:
+
 ```groovy
 stage('Build') {
     steps {
@@ -849,6 +912,7 @@ stage('Build') {
 ```
 
 **Stage 'Unit Tests'** - Líneas 42-61:
+
 ```groovy
 stage('Unit Tests') {
     steps {
@@ -868,6 +932,7 @@ stage('Unit Tests') {
 ```
 
 **Stage 'Build Docker Image'** - Líneas 63-75:
+
 ```groovy
 docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-${GIT_COMMIT_SHORT} \
     -f Dockerfile .
@@ -876,6 +941,7 @@ docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-${GIT_COMMIT_SH
 ```
 
 **Beneficios**:
+
 - ✅ Compila con Java 11 sin importar la versión de Java del servidor Jenkins
 - ✅ Compatible con Dockerfiles simplificados
 - ✅ Caché de Maven reutilizable entre builds
@@ -888,6 +954,7 @@ docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:dev-${GIT_COMMIT_SH
 **Stage 'Build'** - Líneas 42-57
 **Stage 'Unit Tests'** - Líneas 59-78
 **Stage 'Integration Tests'** - Líneas 80-94:
+
 ```groovy
 stage('Integration Tests') {
     steps {
@@ -907,6 +974,7 @@ stage('Integration Tests') {
 ```
 
 **Stage 'Build Docker Image'** - Líneas 96-110:
+
 ```groovy
 docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:${RELEASE_VERSION} \
     -f Dockerfile .
@@ -914,6 +982,7 @@ docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:${RELEASE_VERSION} 
 ```
 
 **Archivos**:
+
 - [jenkins/Jenkinsfile-dev](jenkins/Jenkinsfile-dev)
 - [jenkins/Jenkinsfile-master](jenkins/Jenkinsfile-master)
 
@@ -922,6 +991,7 @@ docker build -t ${DOCKER_USERNAME}/${SERVICE}-ecommerce-boot:${RELEASE_VERSION} 
 Todos los deployments de Kubernetes ahora incluyen AMBAS variables de entorno necesarias:
 
 **Servicios actualizados**:
+
 - [k8s/services/user-service/deployment.yaml](k8s/services/user-service/deployment.yaml)
 - [k8s/services/product-service/deployment.yaml](k8s/services/product-service/deployment.yaml)
 - [k8s/services/order-service/deployment.yaml](k8s/services/order-service/deployment.yaml)
@@ -931,6 +1001,7 @@ Todos los deployments de Kubernetes ahora incluyen AMBAS variables de entorno ne
 - [k8s/infrastructure/api-gateway/deployment.yaml](k8s/infrastructure/api-gateway/deployment.yaml)
 
 **Configuración agregada** (líneas 22-28 en cada deployment):
+
 ```yaml
 env:
 - name: SPRING_PROFILES_ACTIVE
@@ -961,6 +1032,7 @@ env:
 Para verificar que los cambios están aplicados correctamente:
 
 **Jenkinsfiles**:
+
 ```bash
 # Verificar que usan docker run con maven:3.8.6-openjdk-11
 grep -n "maven:3.8.6-openjdk-11" jenkins/Jenkinsfile-dev
@@ -968,6 +1040,7 @@ grep -n "maven:3.8.6-openjdk-11" jenkins/Jenkinsfile-master
 ```
 
 **Manifiestos K8s**:
+
 ```bash
 # Verificar que todos tienen SPRING_ZIPKIN_BASE_URL
 grep -r "SPRING_ZIPKIN_BASE_URL" k8s/services/
@@ -977,16 +1050,19 @@ grep "SPRING_ZIPKIN_BASE_URL" k8s/infrastructure/api-gateway/deployment.yaml
 ### 5. Flujo de Build Actualizado
 
 **Antes**:
+
 ```
 Jenkins → mvnw (usa Java del sistema) → BUILD FAIL si Java != 11
 ```
 
 **Ahora**:
+
 ```
 Jenkins → Docker (maven:3.8.6-openjdk-11) → BUILD SUCCESS siempre
 ```
 
 **Pipeline completo actualizado**:
+
 ```
 1. Checkout código
 2. Build en Docker con Java 11 ✅
@@ -1028,6 +1104,7 @@ Jenkins → Docker (maven:3.8.6-openjdk-11) → BUILD SUCCESS siempre
 ## Comandos Utiles
 
 ### Verificar estado de pods
+
 ```bash
 kubectl get pods -n dev
 kubectl get pods -n stage
@@ -1035,16 +1112,19 @@ kubectl get pods -n prod
 ```
 
 ### Ver logs de un servicio
+
 ```bash
 kubectl logs -f deployment/user-service -n dev
 ```
 
 ### Escalar un servicio
+
 ```bash
 kubectl scale deployment user-service --replicas=3 -n prod
 ```
 
 ### Port-forward para acceso local
+
 ```bash
 kubectl port-forward svc/api-gateway 8080:8080 -n dev
 ```
@@ -1061,17 +1141,21 @@ kubectl port-forward svc/api-gateway 8080:8080 -n dev
 ### Archivos Creados
 
 #### Configuracion Kubernetes
+
 - [k8s/namespaces/](k8s/namespaces/) - 3 namespaces (dev, stage, prod)
 - [k8s/infrastructure/](k8s/infrastructure/) - Service discovery y API gateway
 - [k8s/services/](k8s/services/) - Deployments, services y HPA para 6 microservicios
 
 #### Pipelines Jenkins
+
 - [jenkins/Jenkinsfile-dev](jenkins/Jenkinsfile-dev) - Pipeline para ambiente DEV
 - [jenkins/Jenkinsfile-stage](jenkins/Jenkinsfile-stage) - Pipeline para ambiente STAGE
 - [jenkins/Jenkinsfile-master](jenkins/Jenkinsfile-master) - Pipeline para ambiente MASTER/PROD
 
 #### Pruebas
+
 **Unitarias (5):**
+
 - [user-service/src/test/java/.../UserServiceTest.java](user-service/src/test/java/com/selimhorri/app/service/UserServiceTest.java)
 - [product-service/src/test/java/.../ProductServiceTest.java](product-service/src/test/java/com/selimhorri/app/service/ProductServiceTest.java)
 - [order-service/src/test/java/.../OrderServiceTest.java](order-service/src/test/java/com/selimhorri/app/service/OrderServiceTest.java)
@@ -1079,6 +1163,7 @@ kubectl port-forward svc/api-gateway 8080:8080 -n dev
 - [shipping-service/src/test/java/.../ShippingServiceTest.java](shipping-service/src/test/java/com/selimhorri/app/service/ShippingServiceTest.java)
 
 **Integracion (5):**
+
 - [tests/integration/UserProductIntegrationTest.java](tests/integration/UserProductIntegrationTest.java)
 - [tests/integration/OrderCreationIntegrationTest.java](tests/integration/OrderCreationIntegrationTest.java)
 - [tests/integration/PaymentOrderIntegrationTest.java](tests/integration/PaymentOrderIntegrationTest.java)
@@ -1086,6 +1171,7 @@ kubectl port-forward svc/api-gateway 8080:8080 -n dev
 - [tests/integration/FavouriteUserProductIntegrationTest.java](tests/integration/FavouriteUserProductIntegrationTest.java)
 
 **E2E (5):**
+
 - [tests/e2e/CompleteCheckoutFlow.test.js](tests/e2e/CompleteCheckoutFlow.test.js)
 - [tests/e2e/UserRegistrationAndPurchase.test.js](tests/e2e/UserRegistrationAndPurchase.test.js)
 - [tests/e2e/ProductSearchAndFavourite.test.js](tests/e2e/ProductSearchAndFavourite.test.js)
@@ -1093,14 +1179,17 @@ kubectl port-forward svc/api-gateway 8080:8080 -n dev
 - [tests/e2e/RefundFlow.test.js](tests/e2e/RefundFlow.test.js)
 
 **Rendimiento:**
+
 - [tests/performance/locustfile.py](tests/performance/locustfile.py) - Pruebas con Locust (100 usuarios concurrentes)
 
 #### Scripts de Despliegue
+
 - [scripts/deploy-local.sh](scripts/deploy-local.sh) - Despliegue en Minikube
 - [scripts/deploy-aws.sh](scripts/deploy-aws.sh) - Despliegue en AWS EKS
 - [scripts/cleanup-aws.sh](scripts/cleanup-aws.sh) - Limpieza de recursos AWS
 
 #### Documentacion
+
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Este documento (Plan maestro)
 - [MANUAL_CONFIG.md](MANUAL_CONFIG.md) - Configuraciones manuales requeridas
 - [tests/performance/README.md](tests/performance/README.md) - Guia de pruebas de rendimiento
@@ -1108,29 +1197,35 @@ kubectl port-forward svc/api-gateway 8080:8080 -n dev
 ### Cumplimiento de Requisitos del Taller
 
 #### 1. Configuracion de Jenkins, Docker y Kubernetes (10%)
+
 - Instrucciones completas en [MANUAL_CONFIG.md](MANUAL_CONFIG.md)
 - Scripts automatizados para instalacion y configuracion
 
 #### 2. Pipeline DEV (15%)
+
 - [jenkins/Jenkinsfile-dev](jenkins/Jenkinsfile-dev)
 - Build con Maven, pruebas unitarias, Docker build y push, deploy a Docker Compose
 
 #### 3. Pruebas (30%)
+
 - 5 pruebas unitarias validando componentes individuales
 - 5 pruebas de integracion validando comunicacion entre servicios
 - 5 pruebas E2E validando flujos completos de usuario
 - Pruebas de rendimiento con Locust simulando 100 usuarios concurrentes
 
 #### 4. Pipeline STAGE (15%)
+
 - [jenkins/Jenkinsfile-stage](jenkins/Jenkinsfile-stage)
 - Build, pruebas unitarias e integracion, deploy a Kubernetes, pruebas E2E
 
 #### 5. Pipeline MASTER/PROD (15%)
+
 - [jenkins/Jenkinsfile-master](jenkins/Jenkinsfile-master)
 - Build, todas las pruebas, deploy a AWS EKS, pruebas de rendimiento
 - Generacion automatica de Release Notes con versionado semantico
 
 #### 6. Documentacion (15%)
+
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Plan maestro de despliegue
 - [MANUAL_CONFIG.md](MANUAL_CONFIG.md) - Configuraciones manuales
 - [tests/performance/README.md](tests/performance/README.md) - Guia de pruebas
@@ -1164,6 +1259,7 @@ Requiere: Docker, Minikube y kubectl instalados
 Requiere: AWS CLI, eksctl y kubectl configurados (ver [MANUAL_CONFIG.md](MANUAL_CONFIG.md))
 
 #### Ejecutar Pruebas
+
 ```bash
 # Unitarias
 ./mvnw test

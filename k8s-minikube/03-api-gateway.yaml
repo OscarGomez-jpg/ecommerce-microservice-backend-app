@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: ecommerce
+  labels:
+    app: api-gateway
+spec:
+  type: NodePort
+  selector:
+    app: api-gateway
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+    protocol: TCP
+    name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: ecommerce
+  labels:
+    app: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: api-gateway:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          value: "http://service-discovery:8761/eureka"
+        - name: SPRING_ZIPKIN_BASE_URL
+          value: "http://zipkin:9411/"
+        - name: SPRING_CONFIG_IMPORT
+          value: ""
+        - name: SPRING_JPA_SHOW_SQL
+          value: "false"
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK
+          value: "WARN"
+        - name: LOGGING_LEVEL_ORG_HIBERNATE
+          value: "WARN"
+        - name: SPRING_MAIN_LAZY_INITIALIZATION
+          value: "true"
+        - name: JAVA_TOOL_OPTIONS
+          value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "200m"
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          failureThreshold: 60
+          timeoutSeconds: 5

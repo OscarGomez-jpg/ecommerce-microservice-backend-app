@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: ecommerce
+  labels:
+    app: user-service
+spec:
+  type: ClusterIP
+  selector:
+    app: user-service
+  ports:
+  - port: 8700
+    targetPort: 8700
+    protocol: TCP
+    name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: ecommerce
+  labels:
+    app: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: user-service:local
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8700
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          value: "http://service-discovery:8761/eureka"
+        - name: SPRING_ZIPKIN_BASE_URL
+          value: "http://zipkin:9411/"
+        - name: SPRING_CONFIG_IMPORT
+          value: ""
+        - name: SPRING_JPA_SHOW_SQL
+          value: "false"
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK
+          value: "WARN"
+        - name: LOGGING_LEVEL_ORG_HIBERNATE
+          value: "WARN"
+        - name: SPRING_MAIN_LAZY_INITIALIZATION
+          value: "true"
+        - name: JAVA_TOOL_OPTIONS
+          value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "100m"
+          limits:
+            memory: "2Gi"
+            cpu: "300m"
+        readinessProbe:
+          httpGet:
+            path: /user-service/actuator/health
+            port: 8700
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          failureThreshold: 60
+          timeoutSeconds: 5
