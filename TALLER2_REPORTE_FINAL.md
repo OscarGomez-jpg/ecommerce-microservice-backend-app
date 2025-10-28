@@ -5,6 +5,7 @@
 ### ✅ 1. Infraestructura CI/CD en Minikube
 
 **Jenkins**
+
 - ✅ Desplegado en namespace `cicd` via Helm
 - ✅ Accesible en: `http://192.168.49.2:30800`
 - ✅ Configuración:
@@ -17,6 +18,7 @@
   - Password: Ver con `kubectl exec --namespace cicd -it svc/jenkins -c jenkins -- /bin/cat /run/secrets/additional/chart-admin-password`
 
 **SonarQube**
+
 - ✅ Desplegado en namespace `cicd` via Helm
 - ✅ Community Edition 25.9
 - ✅ Accesible en: `http://192.168.49.2:30900`
@@ -25,6 +27,7 @@
 - ✅ Credenciales iniciales: `admin/admin` (cambiar en primer login)
 
 **RBAC Kubernetes**
+
 - ✅ ServiceAccount `jenkins` en namespace `cicd`
 - ✅ ClusterRole con permisos para:
   - Deployments (get, list, create, update, patch, delete)
@@ -38,6 +41,7 @@
 ### ✅ 2. Pipeline CI/CD Completo (Jenkinsfile)
 
 **Características del Pipeline:**
+
 - ✅ Pipeline declarativo con Kubernetes Agents dinámicos
 - ✅ Pods multi-contenedor:
   - Maven (3.9-eclipse-temurin-17): Build y tests
@@ -47,6 +51,7 @@
 **Modos de Operación:**
 
 #### Modo Individual (Servicio Específico)
+
 ```groovy
 SERVICE_NAME: user-service, product-service, order-service, api-gateway, service-discovery
 RUN_SONAR: true/false
@@ -54,6 +59,7 @@ DEPLOY_TO_MINIKUBE: true/false
 ```
 
 **Stages:**
+
 1. **Checkout** - Clona repositorio
 2. **Build & Test** - Maven clean package
 3. **Unit Tests** - Maven test + JUnit reports
@@ -64,6 +70,7 @@ DEPLOY_TO_MINIKUBE: true/false
 8. **Verify Deployment** - Espera readiness probe
 
 #### Modo BUILD ALL (Todos los Servicios)
+
 ```groovy
 SERVICE_NAME: ALL
 RUN_SONAR: false (deshabilitado en modo ALL)
@@ -71,6 +78,7 @@ DEPLOY_TO_MINIKUBE: true/false
 ```
 
 **Stages:**
+
 1. **Checkout** - Clona repositorio
 2. **Build All Services** - Maven build de 5 servicios en **paralelo**
 3. **Build All Docker Images** - Construcción de 5 imágenes en **paralelo**
@@ -81,6 +89,7 @@ DEPLOY_TO_MINIKUBE: true/false
 5. **Verify Deployment** - Verifica todos los servicios
 
 **Optimizaciones:**
+
 - ✅ Construcción paralela de Maven y Docker (BUILD ALL)
 - ✅ Despliegue secuencial respetando dependencia de Eureka
 - ✅ Timeout en Quality Gate para evitar bloqueos
@@ -103,6 +112,7 @@ DEPLOY_TO_MINIKUBE: true/false
 | zipkin | 9411 | ✅ Running | openzipkin/zipkin | N/A |
 
 **Configuración de Recursos (por servicio):**
+
 ```yaml
 requests:
   memory: 768Mi
@@ -113,6 +123,7 @@ limits:
 ```
 
 **Health Checks:**
+
 ```yaml
 readinessProbe:
   httpGet:
@@ -125,6 +136,7 @@ readinessProbe:
 ```
 
 **Variables de Entorno:**
+
 - `SPRING_PROFILES_ACTIVE=dev`
 - `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery:8761/eureka`
 - `SPRING_ZIPKIN_BASE_URL=http://zipkin:9411/`
@@ -136,8 +148,10 @@ readinessProbe:
 ### ✅ 4. Correcciones y Optimizaciones Realizadas
 
 #### Java Version Compatibility
+
 **Problema:** SonarQube 25.9 requiere Java 17, pero el proyecto usaba Java 11
 **Solución:**
+
 ```dockerfile
 # Antes
 FROM maven:3.8-openjdk-11 AS build
@@ -149,8 +163,10 @@ FROM eclipse-temurin:17-jre-jammy
 ```
 
 #### Docker Socket Access
+
 **Problema:** Pipeline intentaba conectarse a Docker con TLS sin certificados
 **Solución:**
+
 ```yaml
 # Eliminadas variables de entorno TLS
 # DOCKER_HOST, DOCKER_CERT_PATH, DOCKER_TLS_VERIFY
@@ -162,8 +178,10 @@ volumeMounts:
 ```
 
 #### RBAC Permissions
+
 **Problema:** Jenkins no podía escalar deployments
 **Solución:**
+
 ```yaml
 # Agregado permiso para subrecurso scale
 - apiGroups: ["apps"]
@@ -172,16 +190,20 @@ volumeMounts:
 ```
 
 #### Image Pull Policy
+
 **Problema:** Kubernetes intentaba descargar imágenes locales de registry
 **Solución:**
+
 ```yaml
 image: user-service:local
 imagePullPolicy: Never
 ```
 
 #### Workspace Cleanup
+
 **Problema:** Permisos de archivos creados por Maven (root)
 **Solución:**
+
 ```groovy
 // Limpiar desde contenedor Maven
 container('maven') {
@@ -191,8 +213,10 @@ container('maven') {
 ```
 
 #### Quality Gate Timeout
+
 **Problema:** Pipeline bloqueado esperando webhook de SonarQube
 **Solución:**
+
 ```groovy
 timeout(time: 2, unit: 'MINUTES') {
     def qg = waitForQualityGate()
@@ -280,16 +304,19 @@ ecommerce-microservice-backend-app/
 ### Recursos Utilizados
 
 **Minikube:**
+
 - Memory: ~8-10 GB
 - CPU: ~4 cores
 - Disk: ~20 GB
 
 **Namespace cicd:**
+
 - Jenkins: 2-4 Gi RAM
 - SonarQube: 2 Gi RAM
 - PostgreSQL: 1 Gi RAM
 
 **Namespace ecommerce:**
+
 - 6 pods × 768Mi-2Gi = ~5-12 Gi RAM total
 - Zipkin adicional
 
@@ -298,6 +325,7 @@ ecommerce-microservice-backend-app/
 ## 🔧 Comandos Útiles
 
 ### Ver Estado de Todo
+
 ```bash
 # Pods
 kubectl get pods -n ecommerce
@@ -315,6 +343,7 @@ kubectl top nodes
 ```
 
 ### Acceder a UIs
+
 ```bash
 # Jenkins
 echo "http://$(minikube ip):30800"
@@ -327,6 +356,7 @@ echo "http://$(minikube ip):30761"
 ```
 
 ### Ver Logs
+
 ```bash
 # Logs de servicio específico
 kubectl logs -f -n ecommerce -l app=user-service
@@ -339,6 +369,7 @@ kubectl logs -f sonarqube-sonarqube-0 -n cicd
 ```
 
 ### Troubleshooting
+
 ```bash
 # Describe pod con problemas
 kubectl describe pod <POD_NAME> -n ecommerce
@@ -358,11 +389,13 @@ kubectl scale deployment user-service --replicas=1 -n ecommerce
 ## 🎓 Tecnologías Utilizadas
 
 ### Infraestructura
+
 - **Minikube** - Kubernetes local
 - **Helm** - Package manager para Kubernetes
 - **Kubectl** - CLI de Kubernetes
 
 ### CI/CD
+
 - **Jenkins** - Servidor CI/CD
   - Jenkins Kubernetes Plugin
   - Pipeline declarativo
@@ -376,6 +409,7 @@ kubectl scale deployment user-service --replicas=1 -n ecommerce
   - BuildKit
 
 ### Microservicios (Spring Boot 2.6.1)
+
 - **Spring Cloud Netflix Eureka** - Service Discovery
 - **Spring Cloud Gateway** - API Gateway
 - **Spring Data JPA** - Persistencia
@@ -383,6 +417,7 @@ kubectl scale deployment user-service --replicas=1 -n ecommerce
 - **H2 Database** - Base de datos en memoria (dev)
 
 ### Lenguajes y Frameworks
+
 - **Java 17** - Lenguaje principal
 - **Maven 3.9** - Build tool
 - **Groovy** - Jenkins Pipeline DSL
@@ -392,6 +427,7 @@ kubectl scale deployment user-service --replicas=1 -n ecommerce
 ## 📚 Archivos de Configuración Clave
 
 ### Jenkinsfile
+
 - Pipeline declarativo
 - 2 modos: Individual y BUILD ALL
 - Multi-contenedor: Maven, Docker, Kubectl
@@ -399,6 +435,7 @@ kubectl scale deployment user-service --replicas=1 -n ecommerce
 - Deploy automatizado a Kubernetes
 
 ### jenkins-values.yaml
+
 ```yaml
 controller:
   serviceType: NodePort
@@ -417,6 +454,7 @@ persistence:
 ```
 
 ### sonarqube-values.yaml
+
 ```yaml
 community:
   enabled: true
@@ -428,6 +466,7 @@ postgresql:
 ```
 
 ### k8s-minikube/*.yaml
+
 - Manifiestos optimizados para Minikube
 - Resources con límites conservadores
 - imagePullPolicy: Never
@@ -459,6 +498,7 @@ postgresql:
 ## 🚀 Próximos Pasos Recomendados
 
 ### Configuración Adicional
+
 1. **SonarQube Webhook**
    - Configurar webhook en SonarQube: `http://jenkins:8080/sonarqube-webhook/`
    - Para que Quality Gate funcione en tiempo real
@@ -472,6 +512,7 @@ postgresql:
    - PersistentVolumeClaims para datos
 
 ### Mejoras
+
 4. **Monitoring**
    - Desplegar Prometheus + Grafana
    - Dashboards de métricas
@@ -498,6 +539,7 @@ postgresql:
 ## 📝 Notas Importantes
 
 ### Limitaciones Actuales
+
 - Base de datos H2 in-memory (no persistente)
 - Single replica por servicio
 - No hay TLS/SSL
@@ -505,6 +547,7 @@ postgresql:
 - Minikube single-node (no HA)
 
 ### Decisiones de Diseño
+
 - **Java 17**: Requerido por SonarQube 25.9
 - **imagePullPolicy: Never**: Imágenes locales, no registry
 - **Build en paralelo**: Servicios independientes en compilación
@@ -512,6 +555,7 @@ postgresql:
 - **Resources conservadores**: Para funcionar en laptops
 
 ### Archivos Eliminados
+
 - `Guía adicional Taller 2.pdf` (duplicado)
 - `Dockerfile.user-service` (cada servicio tiene el suyo)
 - `azure-pipelines.yml` (no usado)
