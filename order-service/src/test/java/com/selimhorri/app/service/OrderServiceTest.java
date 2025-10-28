@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.selimhorri.app.domain.Order;
+import com.selimhorri.app.domain.Cart;
 import com.selimhorri.app.dto.OrderDto;
 import com.selimhorri.app.helper.OrderMappingHelper;
 import com.selimhorri.app.repository.OrderRepository;
@@ -37,10 +38,15 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Crear cart de prueba
+        Cart testCart = new Cart();
+        testCart.setCartId(1);
+
         testOrder = new Order();
         testOrder.setOrderId(1);
         testOrder.setOrderDate(LocalDateTime.now());
         testOrder.setOrderDesc("Test Order");
+        testOrder.setCart(testCart);
 
         testOrderDto = OrderMappingHelper.map(testOrder);
     }
@@ -48,8 +54,12 @@ class OrderServiceTest {
     @Test
     void testFindAll_ShouldReturnAllOrders() {
         // Arrange
+        Cart cart2 = new Cart();
+        cart2.setCartId(2);
+
         Order order2 = new Order();
         order2.setOrderId(2);
+        order2.setCart(cart2);
         when(orderRepository.findAll()).thenReturn(Arrays.asList(testOrder, order2));
 
         // Act

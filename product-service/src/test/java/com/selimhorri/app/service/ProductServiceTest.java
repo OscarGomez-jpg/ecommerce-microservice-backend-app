@@ -120,13 +120,15 @@ class ProductServiceTest {
     @Test
     void testDeleteById_ShouldDeleteProduct() {
         // Arrange
-        doNothing().when(productRepository).deleteById(1);
+        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        doNothing().when(productRepository).delete(any(Product.class));
 
         // Act
         productService.deleteById(1);
 
         // Assert
-        verify(productRepository, times(1)).deleteById(1);
+        verify(productRepository, times(1)).findById(1);
+        verify(productRepository, times(1)).delete(any(Product.class));
     }
 
     @Test
