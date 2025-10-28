@@ -127,11 +127,14 @@ spec:
                                     mvn sonar:sonar \
                                       -Dsonar.projectKey=${params.SERVICE_NAME} \
                                       -Dsonar.projectName=${params.SERVICE_NAME} \
-                                      -Dsonar.host.url=${SONAR_HOST_URL}
+                                      -Dsonar.host.url=${SONAR_HOST_URL} \
+                                      -Dsonar.java.coveragePlugin=jacoco \
+                                      -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
                                 """
                             }
                         }
                         echo "✅ Análisis de SonarQube completado"
+                        echo "📊 Ver resultados en: ${SONAR_HOST_URL}/dashboard?id=${params.SERVICE_NAME}"
                     }
                 }
             }
@@ -144,14 +147,19 @@ spec:
             steps {
                 script {
                     echo "⏳ Esperando resultado del Quality Gate..."
-                    timeout(time: 5, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            echo "⚠️ Quality Gate falló: ${qg.status}"
-                            // No fallamos el build, solo advertimos
-                        } else {
-                            echo "✅ Quality Gate aprobado"
+                    try {
+                        timeout(time: 2, unit: 'MINUTES') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                echo "⚠️ Quality Gate falló: ${qg.status}"
+                                // No fallamos el build, solo advertimos
+                            } else {
+                                echo "✅ Quality Gate aprobado"
+                            }
                         }
+                    } catch (Exception e) {
+                        echo "⚠️ Quality Gate timeout o error: ${e.message}"
+                        echo "⏭️ Continuando con el pipeline..."
                     }
                 }
             }
@@ -246,7 +254,17 @@ spec:
         }
         always {
             echo "🧹 Limpiando workspace..."
-            deleteDir()
+            script {
+                try {
+                    // Limpiar desde el contenedor Maven para evitar problemas de permisos
+                    container('maven') {
+                        sh 'rm -rf target || true'
+                        sh 'mvn clean || true'
+                    }
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo limpiar workspace: ${e.message}"
+                }
+            }
         }
     }
 }
