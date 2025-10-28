@@ -14,7 +14,7 @@ spec:
   serviceAccountName: jenkins
   containers:
   - name: maven
-    image: maven:3.8-openjdk-11
+    image: maven:3.9-eclipse-temurin-17
     command:
     - sleep
     args:
@@ -246,7 +246,7 @@ spec:
         }
         always {
             echo "🧹 Limpiando workspace..."
-            cleanWs()
+            deleteDir()
         }
     }
 }
