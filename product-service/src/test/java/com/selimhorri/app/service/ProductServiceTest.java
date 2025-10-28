@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.selimhorri.app.domain.Product;
+import com.selimhorri.app.domain.Category;
 import com.selimhorri.app.dto.ProductDto;
 import com.selimhorri.app.helper.ProductMappingHelper;
 import com.selimhorri.app.repository.ProductRepository;
@@ -36,12 +37,19 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Crear categoría de prueba
+        Category testCategory = new Category();
+        testCategory.setCategoryId(1);
+        testCategory.setCategoryTitle("Test Category");
+        testCategory.setImageUrl("test-image.jpg");
+
         testProduct = new Product();
         testProduct.setProductId(1);
         testProduct.setProductTitle("Test Product");
         testProduct.setSku("SKU001");
         testProduct.setPriceUnit(99.99);
         testProduct.setQuantity(100);
+        testProduct.setCategory(testCategory);
 
         testProductDto = ProductMappingHelper.map(testProduct);
     }
@@ -49,9 +57,15 @@ class ProductServiceTest {
     @Test
     void testFindAll_ShouldReturnAllProducts() {
         // Arrange
+        Category category2 = new Category();
+        category2.setCategoryId(2);
+        category2.setCategoryTitle("Category 2");
+        category2.setImageUrl("category2.jpg");
+
         Product product2 = new Product();
         product2.setProductId(2);
         product2.setProductTitle("Product 2");
+        product2.setCategory(category2);
         when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct, product2));
 
         // Act

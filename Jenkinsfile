@@ -56,7 +56,7 @@ spec:
         booleanParam(
             name: 'RUN_SONAR',
             defaultValue: true,
-            description: 'Ejecutar análisis de SonarQube (solo para servicios individuales)'
+            description: 'Ejecutar análisis de SonarQube (tests + coverage para servicio individual o todos los servicios)'
         )
         booleanParam(
             name: 'DEPLOY_TO_MINIKUBE',
@@ -218,6 +218,70 @@ spec:
                             }
                         }
                         parallel buildStages
+                    }
+                }
+            }
+        }
+
+        stage('Test All Services') {
+            when {
+                expression { params.SERVICE_NAME == 'ALL' && params.RUN_SONAR == true }
+            }
+            steps {
+                container('maven') {
+                    script {
+                        echo "🧪 Ejecutando tests de TODOS los servicios..."
+                        def services = ['service-discovery', 'api-gateway', 'user-service', 'product-service', 'order-service']
+
+                        for (service in services) {
+                            echo "🧪 Ejecutando tests de ${service}..."
+                            dir(service) {
+                                sh 'mvn test || true'
+                            }
+                            echo "✅ Tests de ${service} ejecutados"
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def services = ['service-discovery', 'api-gateway', 'user-service', 'product-service', 'order-service']
+                        for (service in services) {
+                            junit allowEmptyResults: true, testResults: "${service}/target/surefire-reports/*.xml"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube All Services') {
+            when {
+                expression { params.SERVICE_NAME == 'ALL' && params.RUN_SONAR == true }
+            }
+            steps {
+                container('maven') {
+                    script {
+                        echo "📊 Analizando TODOS los servicios con SonarQube..."
+                        def services = ['service-discovery', 'api-gateway', 'user-service', 'product-service', 'order-service']
+
+                        for (service in services) {
+                            echo "📊 Analizando ${service} con SonarQube..."
+                            dir(service) {
+                                withSonarQubeEnv('SonarQube') {
+                                    sh """
+                                        mvn sonar:sonar \
+                                          -Dsonar.projectKey=${service} \
+                                          -Dsonar.projectName=${service} \
+                                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                                          -Dsonar.java.coveragePlugin=jacoco \
+                                          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+                                    """
+                                }
+                            }
+                            echo "✅ ${service} analizado en SonarQube"
+                        }
+                        echo "✅ Todos los servicios analizados. Ver resultados en: ${SONAR_HOST_URL}"
                     }
                 }
             }
