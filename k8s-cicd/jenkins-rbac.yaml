@@ -1,0 +1,75 @@
+---
+# ServiceAccount para Jenkins
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: cicd
+
+---
+# ClusterRole con permisos para gestionar recursos en namespace ecommerce
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jenkins-deploy
+rules:
+  # Permisos para deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Permisos para pods
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+
+  # Permisos para services
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Permisos para configmaps y secrets
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Permisos para namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+
+  # Permisos para pods de Jenkins agents
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+
+---
+# ClusterRoleBinding para asociar el ServiceAccount con el ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jenkins-deploy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins-deploy
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: cicd
+
+---
+# RoleBinding adicional en namespace ecommerce
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-ecommerce
+  namespace: ecommerce
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins-deploy
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: cicd

@@ -1,0 +1,56 @@
+controller:
+  serviceType: NodePort
+  nodePort: 30800
+
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+  # Plugins esenciales para CI/CD
+  installPlugins:
+    - kubernetes:4252.v6f7c61b_c43e6
+    - workflow-aggregator:600.vb_57cdd26fdd7
+    - git:5.7.0
+    - configuration-as-code:1910.v5b_f65b_6f5f9b_
+    - sonar:2.17.2
+    - docker-workflow:580.vc0c340686b_54
+    - pipeline-stage-view:2.34
+    - blueocean:1.27.14
+
+  # Configuración de seguridad inicial
+  adminUser: "admin"
+
+  # JCasC - Jenkins Configuration as Code
+  JCasC:
+    defaultConfig: true
+    configScripts:
+      welcome-message: |
+        jenkins:
+          systemMessage: "Jenkins configurado para microservicios e-commerce\n\n"
+
+      sonarqube-config: |
+        unclassified:
+          sonarGlobalConfiguration:
+            installations:
+              - name: "SonarQube"
+                serverUrl: "http://sonarqube-sonarqube:9000"
+                credentialsId: "sonarqube-token"
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: "standard"
+
+agent:
+  enabled: true
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
