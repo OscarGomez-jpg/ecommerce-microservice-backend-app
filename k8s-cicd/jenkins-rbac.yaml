@@ -18,6 +18,11 @@ rules:
     resources: ["deployments", "replicasets", "statefulsets"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
+  # Permisos para escalar deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update", "patch"]
+
   # Permisos para pods
   - apiGroups: [""]
     resources: ["pods", "pods/log", "pods/exec"]
