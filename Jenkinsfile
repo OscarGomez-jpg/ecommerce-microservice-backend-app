@@ -34,6 +34,11 @@ spec:
     volumeMounts:
     - name: docker-sock
       mountPath: /var/run/docker.sock
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command:
+    - cat
+    tty: true
   volumes:
   - name: docker-sock
     hostPath:
@@ -183,22 +188,24 @@ spec:
                 expression { params.DEPLOY_TO_MINIKUBE == true }
             }
             steps {
-                script {
-                    echo "🚀 Desplegando ${params.SERVICE_NAME} en Minikube..."
+                container('kubectl') {
+                    script {
+                        echo "🚀 Desplegando ${params.SERVICE_NAME} en Minikube..."
 
-                    // Escalar a 0 para liberar recursos
-                    sh """
-                        kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ecommerce || true
-                        sleep 5
-                    """
+                        // Escalar a 0 para liberar recursos
+                        sh """
+                            kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ecommerce || true
+                            sleep 5
+                        """
 
-                    // Escalar a 1 con nueva imagen
-                    sh """
-                        kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ecommerce
-                        kubectl rollout status deployment/${params.SERVICE_NAME} -n ecommerce --timeout=300s
-                    """
+                        // Escalar a 1 con nueva imagen
+                        sh """
+                            kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ecommerce
+                            kubectl rollout status deployment/${params.SERVICE_NAME} -n ecommerce --timeout=300s
+                        """
 
-                    echo "✅ Despliegue completado"
+                        echo "✅ Despliegue completado"
+                    }
                 }
             }
         }
@@ -208,19 +215,21 @@ spec:
                 expression { params.DEPLOY_TO_MINIKUBE == true }
             }
             steps {
-                script {
-                    echo "🔍 Verificando despliegue..."
-                    sh """
-                        kubectl get pods -n ecommerce -l app=${params.SERVICE_NAME}
-                        kubectl get svc -n ecommerce ${params.SERVICE_NAME}
-                    """
+                container('kubectl') {
+                    script {
+                        echo "🔍 Verificando despliegue..."
+                        sh """
+                            kubectl get pods -n ecommerce -l app=${params.SERVICE_NAME}
+                            kubectl get svc -n ecommerce ${params.SERVICE_NAME}
+                        """
 
-                    // Esperar a que el pod esté ready
-                    sh """
-                        kubectl wait --for=condition=ready pod -l app=${params.SERVICE_NAME} -n ecommerce --timeout=300s
-                    """
+                        // Esperar a que el pod esté ready
+                        sh """
+                            kubectl wait --for=condition=ready pod -l app=${params.SERVICE_NAME} -n ecommerce --timeout=300s
+                        """
 
-                    echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"
+                        echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"
+                    }
                 }
             }
         }
