@@ -50,13 +50,13 @@ spec:
     parameters {
         choice(
             name: 'SERVICE_NAME',
-            choices: ['user-service', 'product-service', 'order-service', 'api-gateway', 'service-discovery'],
-            description: 'Microservicio a construir y desplegar'
+            choices: ['ALL', 'user-service', 'product-service', 'order-service', 'api-gateway', 'service-discovery'],
+            description: 'Microservicio a construir y desplegar (ALL = todos los servicios)'
         )
         booleanParam(
             name: 'RUN_SONAR',
             defaultValue: true,
-            description: 'Ejecutar análisis de SonarQube'
+            description: 'Ejecutar análisis de SonarQube (solo para servicios individuales)'
         )
         booleanParam(
             name: 'DEPLOY_TO_MINIKUBE',
@@ -79,6 +79,9 @@ spec:
         }
 
         stage('Build & Test') {
+            when {
+                expression { params.SERVICE_NAME != 'ALL' }
+            }
             steps {
                 container('maven') {
                     script {
@@ -95,6 +98,9 @@ spec:
         }
 
         stage('Unit Tests') {
+            when {
+                expression { params.SERVICE_NAME != 'ALL' }
+            }
             steps {
                 container('maven') {
                     script {
@@ -117,7 +123,7 @@ spec:
 
         stage('SonarQube Analysis') {
             when {
-                expression { params.RUN_SONAR == true }
+                expression { params.RUN_SONAR == true && params.SERVICE_NAME != 'ALL' }
             }
             steps {
                 container('maven') {
@@ -144,7 +150,7 @@ spec:
 
         stage('Quality Gate') {
             when {
-                expression { params.RUN_SONAR == true }
+                expression { params.RUN_SONAR == true && params.SERVICE_NAME != 'ALL' }
             }
             steps {
                 script {
@@ -168,6 +174,9 @@ spec:
         }
 
         stage('Build Docker Image') {
+            when {
+                expression { params.SERVICE_NAME != 'ALL' }
+            }
             steps {
                 container('docker') {
                     script {
@@ -176,8 +185,73 @@ spec:
                             cd ${params.SERVICE_NAME}
                             docker build -t ${params.SERVICE_NAME}:latest -f Dockerfile .
                             docker tag ${params.SERVICE_NAME}:latest ${params.SERVICE_NAME}:\${BUILD_NUMBER}
-                            echo "✅ Imagen Docker construida: ${params.SERVICE_NAME}:latest"
+                            docker tag ${params.SERVICE_NAME}:latest ${params.SERVICE_NAME}:local
+                            echo "✅ Imagen Docker construida: ${params.SERVICE_NAME}:latest (tags: \${BUILD_NUMBER}, local)"
                         """
+                    }
+                }
+            }
+        }
+
+        stage('Build All Services') {
+            when {
+                expression { params.SERVICE_NAME == 'ALL' }
+            }
+            steps {
+                container('maven') {
+                    script {
+                        echo "🔨 Construyendo TODOS los microservicios..."
+                        def services = ['service-discovery', 'api-gateway', 'user-service', 'product-service', 'order-service']
+
+                        // Build en paralelo
+                        def buildStages = [:]
+                        for (service in services) {
+                            def svc = service // Capturar variable para closure
+                            buildStages[svc] = {
+                                stage("Build ${svc}") {
+                                    echo "🔨 Construyendo ${svc}..."
+                                    dir(svc) {
+                                        sh 'mvn clean package -DskipTests'
+                                    }
+                                    echo "✅ ${svc} construido"
+                                }
+                            }
+                        }
+                        parallel buildStages
+                    }
+                }
+            }
+        }
+
+        stage('Build All Docker Images') {
+            when {
+                expression { params.SERVICE_NAME == 'ALL' }
+            }
+            steps {
+                container('docker') {
+                    script {
+                        echo "🐳 Construyendo imágenes Docker de TODOS los servicios..."
+                        def services = ['service-discovery', 'api-gateway', 'user-service', 'product-service', 'order-service']
+
+                        // Construir imágenes en paralelo
+                        def dockerStages = [:]
+                        for (service in services) {
+                            def svc = service
+                            dockerStages[svc] = {
+                                stage("Docker ${svc}") {
+                                    echo "🐳 Construyendo imagen Docker de ${svc}..."
+                                    sh """
+                                        cd ${svc}
+                                        docker build -t ${svc}:latest -f Dockerfile .
+                                        docker tag ${svc}:latest ${svc}:local
+                                        docker tag ${svc}:latest ${svc}:\${BUILD_NUMBER}
+                                    """
+                                    echo "✅ Imagen ${svc}:local construida"
+                                }
+                            }
+                        }
+                        parallel dockerStages
+                        echo "✅ Todas las imágenes Docker construidas"
                     }
                 }
             }
@@ -190,21 +264,70 @@ spec:
             steps {
                 container('kubectl') {
                     script {
-                        echo "🚀 Desplegando ${params.SERVICE_NAME} en Minikube..."
+                        if (params.SERVICE_NAME == 'ALL') {
+                            echo "🚀 Desplegando TODOS los servicios en Minikube..."
 
-                        // Escalar a 0 para liberar recursos
-                        sh """
-                            kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ecommerce || true
-                            sleep 5
-                        """
+                            // PASO 1: Desplegar service-discovery PRIMERO (Eureka)
+                            echo "📍 Paso 1: Desplegando service-discovery (Eureka)..."
+                            sh """
+                                kubectl scale deployment service-discovery --replicas=0 -n ecommerce || true
+                                sleep 5
+                                kubectl scale deployment service-discovery --replicas=1 -n ecommerce
+                            """
 
-                        // Escalar a 1 con nueva imagen
-                        sh """
-                            kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ecommerce
-                            kubectl rollout status deployment/${params.SERVICE_NAME} -n ecommerce --timeout=300s
-                        """
+                            // Esperar a que Eureka esté READY
+                            echo "⏳ Esperando a que service-discovery esté READY..."
+                            sh """
+                                kubectl rollout status deployment/service-discovery -n ecommerce --timeout=300s
+                                kubectl wait --for=condition=ready pod -l app=service-discovery -n ecommerce --timeout=300s
+                            """
+                            echo "✅ service-discovery está READY"
 
-                        echo "✅ Despliegue completado"
+                            // Esperar 30 segundos adicionales para que Eureka se estabilice
+                            echo "⏳ Esperando 30s para que Eureka se estabilice..."
+                            sleep 30
+
+                            // PASO 2: Desplegar el resto de servicios
+                            echo "📍 Paso 2: Desplegando resto de servicios..."
+                            def services = ['api-gateway', 'user-service', 'product-service', 'order-service']
+
+                            for (service in services) {
+                                echo "🚀 Desplegando ${service}..."
+                                sh """
+                                    kubectl scale deployment ${service} --replicas=0 -n ecommerce || true
+                                    sleep 3
+                                    kubectl scale deployment ${service} --replicas=1 -n ecommerce
+                                """
+                            }
+
+                            // Esperar a que todos estén desplegados
+                            echo "⏳ Esperando a que todos los servicios estén desplegados..."
+                            for (service in services) {
+                                sh """
+                                    kubectl rollout status deployment/${service} -n ecommerce --timeout=300s || true
+                                """
+                            }
+
+                            echo "✅ Todos los servicios desplegados"
+
+                        } else {
+                            // Despliegue de servicio individual
+                            echo "🚀 Desplegando ${params.SERVICE_NAME} en Minikube..."
+
+                            // Escalar a 0 para liberar recursos
+                            sh """
+                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ecommerce || true
+                                sleep 5
+                            """
+
+                            // Escalar a 1 con nueva imagen
+                            sh """
+                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ecommerce
+                                kubectl rollout status deployment/${params.SERVICE_NAME} -n ecommerce --timeout=300s
+                            """
+
+                            echo "✅ Despliegue completado"
+                        }
                     }
                 }
             }
@@ -217,18 +340,40 @@ spec:
             steps {
                 container('kubectl') {
                     script {
-                        echo "🔍 Verificando despliegue..."
-                        sh """
-                            kubectl get pods -n ecommerce -l app=${params.SERVICE_NAME}
-                            kubectl get svc -n ecommerce ${params.SERVICE_NAME}
-                        """
+                        if (params.SERVICE_NAME == 'ALL') {
+                            echo "🔍 Verificando despliegue de TODOS los servicios..."
+                            def allServices = ['service-discovery', 'api-gateway', 'user-service', 'product-service', 'order-service']
 
-                        // Esperar a que el pod esté ready
-                        sh """
-                            kubectl wait --for=condition=ready pod -l app=${params.SERVICE_NAME} -n ecommerce --timeout=300s
-                        """
+                            for (service in allServices) {
+                                echo "🔍 Verificando ${service}..."
+                                sh """
+                                    kubectl get pods -n ecommerce -l app=${service}
+                                    kubectl wait --for=condition=ready pod -l app=${service} -n ecommerce --timeout=300s || echo "⚠️ ${service} no está ready aún"
+                                """
+                            }
 
-                        echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"
+                            echo "📊 Estado final de todos los servicios:"
+                            sh """
+                                kubectl get pods -n ecommerce
+                                kubectl get svc -n ecommerce
+                            """
+
+                            echo "✅ Verificación completada para todos los servicios"
+
+                        } else {
+                            echo "🔍 Verificando despliegue..."
+                            sh """
+                                kubectl get pods -n ecommerce -l app=${params.SERVICE_NAME}
+                                kubectl get svc -n ecommerce ${params.SERVICE_NAME}
+                            """
+
+                            // Esperar a que el pod esté ready
+                            sh """
+                                kubectl wait --for=condition=ready pod -l app=${params.SERVICE_NAME} -n ecommerce --timeout=300s
+                            """
+
+                            echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"
+                        }
                     }
                 }
             }
