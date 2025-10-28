@@ -62,10 +62,7 @@ spec:
 
     environment {
         SONAR_HOST_URL = 'http://sonarqube-sonarqube:9000'
-        DOCKER_HOST = 'tcp://192.168.49.2:2376'
-        DOCKER_CERT_PATH = '/home/osgomez/.minikube/certs'
-        DOCKER_TLS_VERIFY = '1'
-        MINIKUBE_ACTIVE_DOCKERD = 'minikube'
+        // Docker usará el socket montado en /var/run/docker.sock
     }
 
     stages {
