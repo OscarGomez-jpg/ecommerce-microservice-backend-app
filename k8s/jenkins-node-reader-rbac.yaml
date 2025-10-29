@@ -1,0 +1,24 @@
+---
+# ClusterRole que permite leer información de nodos
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
+---
+# ClusterRoleBinding que asigna el ClusterRole al ServiceAccount jenkins
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jenkins-node-reader
+subjects:
+- kind: ServiceAccount
+  name: jenkins
+  namespace: cicd
+roleRef:
+  kind: ClusterRole
+  name: node-reader
+  apiGroup: rbac.authorization.k8s.io
