@@ -39,6 +39,30 @@ spec:
     command:
     - cat
     tty: true
+  - name: node
+    image: cypress/included:13.6.0
+    command:
+    - cat
+    tty: true
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  - name: python
+    image: python:3.11-slim
+    command:
+    - cat
+    tty: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
   volumes:
   - name: docker-sock
     hostPath:
@@ -62,6 +86,16 @@ spec:
             name: 'DEPLOY_TO_MINIKUBE',
             defaultValue: true,
             description: 'Desplegar en Minikube después de construir'
+        )
+        booleanParam(
+            name: 'RUN_E2E_TESTS',
+            defaultValue: false,
+            description: 'Ejecutar tests E2E con Cypress (requiere DEPLOY_TO_MINIKUBE=true)'
+        )
+        booleanParam(
+            name: 'RUN_LOAD_TESTS',
+            defaultValue: false,
+            description: 'Ejecutar tests de carga con Locust (requiere DEPLOY_TO_MINIKUBE=true)'
         )
     }
 
@@ -439,6 +473,82 @@ spec:
                             echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"
                         }
                     }
+                }
+            }
+        }
+
+        stage('E2E Tests with Cypress') {
+            when {
+                expression { params.RUN_E2E_TESTS == true && params.DEPLOY_TO_MINIKUBE == true }
+            }
+            steps {
+                container('node') {
+                    script {
+                        echo "🧪 Ejecutando tests E2E con Cypress..."
+                        def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
+                        def API_URL = "http://${MINIKUBE_IP}:30080"
+
+                        // Wait for services to be fully ready
+                        echo "⏳ Esperando que los servicios estén listos..."
+                        sleep(time: 30, unit: 'SECONDS')
+
+                        sh """
+                            cd tests/e2e
+                            npm install
+                            API_BASE_URL=${API_URL} npx cypress run --config video=true
+                        """
+                        echo "✅ Tests E2E completados"
+                    }
+                }
+            }
+            post {
+                always {
+                    publishHTML([
+                        reportDir: 'tests/e2e/cypress/reports',
+                        reportFiles: 'mochawesome.html',
+                        reportName: 'Cypress E2E Test Report',
+                        allowMissing: true
+                    ])
+                    archiveArtifacts artifacts: 'tests/e2e/cypress/videos/**/*.mp4', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'tests/e2e/cypress/screenshots/**/*.png', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Load Tests with Locust') {
+            when {
+                expression { params.RUN_LOAD_TESTS == true && params.DEPLOY_TO_MINIKUBE == true }
+            }
+            steps {
+                container('python') {
+                    script {
+                        echo "⚡ Ejecutando tests de carga con Locust..."
+                        def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
+                        def API_URL = "http://${MINIKUBE_IP}:30080"
+
+                        sh """
+                            cd tests/performance
+                            pip install --no-cache-dir -r requirements.txt
+                            locust -f locustfile.py --headless \
+                                --users 100 --spawn-rate 10 \
+                                --run-time 3m \
+                                --host ${API_URL} \
+                                --html /tmp/locust-report.html \
+                                --csv /tmp/locust-results
+                        """
+                        echo "✅ Tests de carga completados"
+                    }
+                }
+            }
+            post {
+                always {
+                    publishHTML([
+                        reportDir: '/tmp',
+                        reportFiles: 'locust-report.html',
+                        reportName: 'Locust Load Test Report',
+                        allowMissing: true
+                    ])
+                    archiveArtifacts artifacts: '/tmp/locust-results*.csv', allowEmptyArchive: true
                 }
             }
         }
