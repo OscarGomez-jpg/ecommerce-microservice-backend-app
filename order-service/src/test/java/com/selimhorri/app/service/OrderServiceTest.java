@@ -111,12 +111,14 @@ class OrderServiceTest {
     @Test
     void testDeleteById_ShouldDeleteOrder() {
         // Arrange
-        doNothing().when(orderRepository).deleteById(1);
+        when(orderRepository.findById(1)).thenReturn(Optional.of(testOrder));
+        doNothing().when(orderRepository).delete(any(Order.class));
 
         // Act
         orderService.deleteById(1);
 
         // Assert
-        verify(orderRepository, times(1)).deleteById(1);
+        verify(orderRepository, times(1)).findById(1);
+        verify(orderRepository, times(1)).delete(any(Order.class));
     }
 }
