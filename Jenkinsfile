@@ -488,9 +488,13 @@ spec:
             steps {
                 container('kubectl') {
                     script {
-                        echo "🔍 Obteniendo IP de Minikube..."
-                        env.MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
-                        echo "✅ Minikube IP: ${env.MINIKUBE_IP}"
+                        echo "🔍 Obteniendo IP del nodo de Kubernetes..."
+                        // Obtener IP del nodo usando kubectl (funciona en Minikube y otros clusters)
+                        env.MINIKUBE_IP = sh(
+                            script: "kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}'",
+                            returnStdout: true
+                        ).trim()
+                        echo "✅ Node IP: ${env.MINIKUBE_IP}"
                     }
                 }
             }
