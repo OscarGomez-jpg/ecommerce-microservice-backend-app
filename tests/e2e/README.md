@@ -98,8 +98,9 @@ API_BASE_URL=http://$MINIKUBE_IP:30080 npm run test:e2e
 Cypress generates reports automatically:
 
 - **HTML Reports**: `cypress/reports/mochawesome.html`
-- **Videos**: `cypress/videos/` (recorded for all tests)
-- **Screenshots**: `cypress/screenshots/` (captured on failures)
+- **Screenshots**: `cypress/screenshots/` (captured only on failures)
+
+**Note:** Videos are disabled by default to save space and time. Screenshots are enough for debugging failures.
 
 ### Clean Reports
 
@@ -125,32 +126,21 @@ Main configuration file with:
 
 ### Jenkins Pipeline
 
-```groovy
-stage('E2E Tests with Cypress') {
-    steps {
-        container('node') {
-            script {
-                def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
+Already integrated! The pipeline automatically runs E2E tests when you set `RUN_E2E_TESTS=true`.
 
-                sh """
-                    cd tests/e2e
-                    npm install
-                    API_BASE_URL=http://${MINIKUBE_IP}:30080 npm run test:e2e
-                """
-            }
-        }
-    }
-    post {
-        always {
-            publishHTML([
-                reportDir: 'tests/e2e/cypress/reports',
-                reportFiles: 'mochawesome.html',
-                reportName: 'Cypress E2E Test Report'
-            ])
-            archiveArtifacts artifacts: 'tests/e2e/cypress/videos/**/*.mp4', allowEmptyArchive: true
-        }
-    }
-}
+```
+Parameters:
+- SERVICE_NAME: ALL
+- RUN_E2E_TESTS: true (to enable)
+- DEPLOY_TO_MINIKUBE: true (required)
+```
+
+The pipeline will:
+1. Deploy services to Minikube
+2. Wait 30 seconds for services to be ready
+3. Run all Cypress tests
+4. Publish HTML report in Jenkins
+5. Archive screenshots (only if tests fail)
 ```
 
 ## Troubleshooting

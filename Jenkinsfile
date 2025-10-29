@@ -478,6 +478,30 @@ spec:
             }
         }
 
+        stage('Populate Test Data') {
+            when {
+                expression { (params.RUN_E2E_TESTS == true || params.RUN_LOAD_TESTS == true) && params.DEPLOY_TO_MINIKUBE == true }
+            }
+            steps {
+                container('kubectl') {
+                    script {
+                        echo "🔧 Poblando datos de prueba..."
+                        def API_URL = "http://${env.MINIKUBE_IP}:30080"
+
+                        // Wait for services to be fully ready before populating
+                        echo "⏳ Esperando que los servicios estén listos..."
+                        sleep(time: 30, unit: 'SECONDS')
+
+                        sh """
+                            chmod +x scripts/populate-test-data.sh
+                            ./scripts/populate-test-data.sh ${env.MINIKUBE_IP}
+                        """
+                        echo "✅ Datos de prueba poblados exitosamente"
+                    }
+                }
+            }
+        }
+
         stage('E2E Tests with Cypress') {
             when {
                 expression { params.RUN_E2E_TESTS == true && params.DEPLOY_TO_MINIKUBE == true }
@@ -488,14 +512,10 @@ spec:
                         echo "🧪 Ejecutando tests E2E con Cypress..."
                         def API_URL = "http://${env.MINIKUBE_IP}:30080"
 
-                        // Wait for services to be fully ready
-                        echo "⏳ Esperando que los servicios estén listos..."
-                        sleep(time: 30, unit: 'SECONDS')
-
                         sh """
                             cd tests/e2e
                             npm install
-                            API_BASE_URL=${API_URL} npx cypress run --config video=true
+                            API_BASE_URL=${API_URL} npx cypress run
                         """
                         echo "✅ Tests E2E completados"
                     }
@@ -503,13 +523,8 @@ spec:
             }
             post {
                 always {
-                    publishHTML([
-                        reportDir: 'tests/e2e/cypress/reports',
-                        reportFiles: 'mochawesome.html',
-                        reportName: 'Cypress E2E Test Report',
-                        allowMissing: true
-                    ])
-                    archiveArtifacts artifacts: 'tests/e2e/cypress/videos/**/*.mp4', allowEmptyArchive: true
+                    // Archivar reporte HTML y screenshots
+                    archiveArtifacts artifacts: 'tests/e2e/cypress/reports/**/*.html', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'tests/e2e/cypress/screenshots/**/*.png', allowEmptyArchive: true
                 }
             }
@@ -527,13 +542,14 @@ spec:
 
                         sh """
                             cd tests/performance
+                            mkdir -p reports
                             pip install --no-cache-dir -r requirements.txt
                             locust -f locustfile.py --headless \
                                 --users 100 --spawn-rate 10 \
                                 --run-time 3m \
                                 --host ${API_URL} \
-                                --html /tmp/locust-report.html \
-                                --csv /tmp/locust-results
+                                --html reports/locust-report.html \
+                                --csv reports/locust-results
                         """
                         echo "✅ Tests de carga completados"
                     }
@@ -542,12 +558,12 @@ spec:
             post {
                 always {
                     publishHTML([
-                        reportDir: '/tmp',
+                        reportDir: 'tests/performance/reports',
                         reportFiles: 'locust-report.html',
                         reportName: 'Locust Load Test Report',
                         allowMissing: true
                     ])
-                    archiveArtifacts artifacts: '/tmp/locust-results*.csv', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'tests/performance/reports/locust-results*.csv', allowEmptyArchive: true
                 }
             }
         }

@@ -5,7 +5,7 @@ module.exports = defineConfig({
     baseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
     supportFile: 'cypress/support/e2e.js',
     specPattern: 'cypress/e2e/**/*.cy.js',
-    video: true,
+    video: false,  // Deshabilitar videos (screenshots siguen activos en fallos)
     screenshotOnRunFailure: true,
     videosFolder: 'cypress/videos',
     screenshotsFolder: 'cypress/screenshots',

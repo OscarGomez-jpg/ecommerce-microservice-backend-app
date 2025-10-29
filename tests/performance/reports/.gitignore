@@ -1,0 +1,6 @@
+# Ignorar todos los reportes generados
+*.html
+*.csv
+
+# Excepto .gitkeep para mantener el directorio
+!.gitkeep
