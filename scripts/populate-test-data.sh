@@ -55,17 +55,21 @@ for i in {1..5}; do
 done
 echo "✅ 5 órdenes creadas"
 
-# Crear pagos
+# Crear pagos (skip si payment-service no está disponible)
 echo "💳 Creando pagos..."
-for i in {1..5}; do
-  curl -s -X POST "${API_URL}/payment-service/api/payments" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"isPayed\": $([ $((RANDOM % 2)) -eq 0 ] && echo "true" || echo "false"),
-      \"paymentAmount\": $(( RANDOM % 200 + 50 ))
-    }" > /dev/null 2>&1 || true
-done
-echo "✅ 5 pagos creados"
+if curl -s -f "${API_URL}/payment-service/actuator/health" > /dev/null 2>&1; then
+  for i in {1..5}; do
+    curl -s -X POST "${API_URL}/payment-service/api/payments" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"isPayed\": $([ $((RANDOM % 2)) -eq 0 ] && echo "true" || echo "false"),
+        \"paymentAmount\": $(( RANDOM % 200 + 50 ))
+      }" > /dev/null 2>&1 || true
+  done
+  echo "✅ 5 pagos creados"
+else
+  echo "⚠️  Payment service no disponible - saltando"
+fi
 
 echo ""
 echo "🎉 Datos de prueba poblados exitosamente!"
