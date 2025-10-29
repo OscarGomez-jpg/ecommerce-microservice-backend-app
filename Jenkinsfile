@@ -101,6 +101,7 @@ spec:
 
     environment {
         SONAR_HOST_URL = 'http://sonarqube-sonarqube:9000'
+        MINIKUBE_IP = ''  // Se llenará dinámicamente desde el container kubectl
         // Docker usará el socket montado en /var/run/docker.sock
     }
 
@@ -477,6 +478,24 @@ spec:
             }
         }
 
+        stage('Get Minikube IP') {
+            when {
+                expression {
+                    (params.RUN_E2E_TESTS == true || params.RUN_LOAD_TESTS == true) &&
+                    params.DEPLOY_TO_MINIKUBE == true
+                }
+            }
+            steps {
+                container('kubectl') {
+                    script {
+                        echo "🔍 Obteniendo IP de Minikube..."
+                        env.MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
+                        echo "✅ Minikube IP: ${env.MINIKUBE_IP}"
+                    }
+                }
+            }
+        }
+
         stage('E2E Tests with Cypress') {
             when {
                 expression { params.RUN_E2E_TESTS == true && params.DEPLOY_TO_MINIKUBE == true }
@@ -485,8 +504,7 @@ spec:
                 container('node') {
                     script {
                         echo "🧪 Ejecutando tests E2E con Cypress..."
-                        def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
-                        def API_URL = "http://${MINIKUBE_IP}:30080"
+                        def API_URL = "http://${env.MINIKUBE_IP}:30080"
 
                         // Wait for services to be fully ready
                         echo "⏳ Esperando que los servicios estén listos..."
@@ -523,8 +541,7 @@ spec:
                 container('python') {
                     script {
                         echo "⚡ Ejecutando tests de carga con Locust..."
-                        def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
-                        def API_URL = "http://${MINIKUBE_IP}:30080"
+                        def API_URL = "http://${env.MINIKUBE_IP}:30080"
 
                         sh """
                             cd tests/performance
