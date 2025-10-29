@@ -101,7 +101,7 @@ spec:
 
     environment {
         SONAR_HOST_URL = 'http://sonarqube-sonarqube:9000'
-        MINIKUBE_IP = ''  // Se llenará dinámicamente desde el container kubectl
+        MINIKUBE_IP = '192.168.49.2'  // IP fijo de Minikube local
         // Docker usará el socket montado en /var/run/docker.sock
     }
 
@@ -473,28 +473,6 @@ spec:
 
                             echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"
                         }
-                    }
-                }
-            }
-        }
-
-        stage('Get Minikube IP') {
-            when {
-                expression {
-                    (params.RUN_E2E_TESTS == true || params.RUN_LOAD_TESTS == true) &&
-                    params.DEPLOY_TO_MINIKUBE == true
-                }
-            }
-            steps {
-                container('kubectl') {
-                    script {
-                        echo "🔍 Obteniendo IP del nodo de Kubernetes..."
-                        // Obtener IP del nodo usando kubectl (funciona en Minikube y otros clusters)
-                        env.MINIKUBE_IP = sh(
-                            script: "kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}'",
-                            returnStdout: true
-                        ).trim()
-                        echo "✅ Node IP: ${env.MINIKUBE_IP}"
                     }
                 }
             }
