@@ -15,7 +15,7 @@ describe('E2E: Order Tracking Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/orders`,
+      url: `${apiUrl}/order-service/api/orders`,
       body: orderData,
       failOnStatusCode: false,
       headers: {
@@ -37,7 +37,7 @@ describe('E2E: Order Tracking Flow', () => {
   it('2. View order details', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/orders/${orderId}`,
+      url: `${apiUrl}/order-service/api/orders/${orderId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -48,7 +48,7 @@ describe('E2E: Order Tracking Flow', () => {
   it('3. View all orders', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/orders`,
+      url: `${apiUrl}/order-service/api/orders`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -59,7 +59,7 @@ describe('E2E: Order Tracking Flow', () => {
   it('4. Check shipping status', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/shipping/order/${orderId}`,
+      url: `${apiUrl}/shipping-service/api/shipping/order/${orderId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -77,7 +77,7 @@ describe('E2E: Order Tracking Flow', () => {
   it('5. View all shipments', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/shipping`,
+      url: `${apiUrl}/shipping-service/api/shipping`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -92,7 +92,7 @@ describe('E2E: Order Tracking Flow', () => {
 
     cy.request({
       method: 'PUT',
-      url: `${apiUrl}/api/shipping/${shippingId}`,
+      url: `${apiUrl}/shipping-service/api/shipping/${shippingId}`,
       body: updateData,
       failOnStatusCode: false,
       headers: {

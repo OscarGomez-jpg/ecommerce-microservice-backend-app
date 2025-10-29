@@ -14,7 +14,7 @@ echo ""
 # Crear productos de prueba
 echo "📦 Creando productos..."
 for i in {1..20}; do
-  curl -s -X POST "${API_URL}/api/products" \
+  curl -s -X POST "${API_URL}/product-service/api/products" \
     -H "Content-Type: application/json" \
     -d "{
       \"productTitle\": \"Product ${i}\",
@@ -31,7 +31,7 @@ echo "✅ 20 productos creados"
 # Crear usuarios de prueba
 echo "👥 Creando usuarios..."
 for i in {1..10}; do
-  curl -s -X POST "${API_URL}/api/users" \
+  curl -s -X POST "${API_URL}/user-service/api/users" \
     -H "Content-Type: application/json" \
     -d "{
       \"firstName\": \"User\",
@@ -45,7 +45,7 @@ echo "✅ 10 usuarios creados"
 # Crear algunas órdenes
 echo "🛒 Creando órdenes..."
 for i in {1..5}; do
-  curl -s -X POST "${API_URL}/api/orders" \
+  curl -s -X POST "${API_URL}/order-service/api/orders" \
     -H "Content-Type: application/json" \
     -d "{
       \"orderDesc\": \"Test Order ${i}\",
@@ -58,7 +58,7 @@ echo "✅ 5 órdenes creadas"
 # Crear pagos
 echo "💳 Creando pagos..."
 for i in {1..5}; do
-  curl -s -X POST "${API_URL}/api/payments" \
+  curl -s -X POST "${API_URL}/payment-service/api/payments" \
     -H "Content-Type: application/json" \
     -d "{
       \"isPayed\": $([ $((RANDOM % 2)) -eq 0 ] && echo "true" || echo "false"),
@@ -71,6 +71,6 @@ echo ""
 echo "🎉 Datos de prueba poblados exitosamente!"
 echo ""
 echo "Puedes verificar:"
-echo "  curl ${API_URL}/api/products"
-echo "  curl ${API_URL}/api/users"
-echo "  curl ${API_URL}/api/orders"
+echo "  curl ${API_URL}/product-service/api/products"
+echo "  curl ${API_URL}/user-service/api/users"
+echo "  curl ${API_URL}/order-service/api/orders"

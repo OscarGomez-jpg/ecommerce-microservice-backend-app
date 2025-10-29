@@ -10,7 +10,7 @@ describe('E2E: Complete Checkout Flow', () => {
   it('1. User browses products', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/products`,
+      url: `${apiUrl}/product-service/api/products`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -35,7 +35,7 @@ describe('E2E: Complete Checkout Flow', () => {
   it('2. User views product details', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/products/${productId}`,
+      url: `${apiUrl}/product-service/api/products/${productId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -57,7 +57,7 @@ describe('E2E: Complete Checkout Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/orders`,
+      url: `${apiUrl}/order-service/api/orders`,
       body: orderData,
       failOnStatusCode: false,
       headers: {
@@ -83,7 +83,7 @@ describe('E2E: Complete Checkout Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/payments`,
+      url: `${apiUrl}/payment-service/api/payments`,
       body: paymentData,
       failOnStatusCode: false,
       headers: {
@@ -109,7 +109,7 @@ describe('E2E: Complete Checkout Flow', () => {
 
     cy.request({
       method: 'PUT',
-      url: `${apiUrl}/api/payments/${paymentId}`,
+      url: `${apiUrl}/payment-service/api/payments/${paymentId}`,
       body: updateData,
       failOnStatusCode: false,
       headers: {
@@ -124,7 +124,7 @@ describe('E2E: Complete Checkout Flow', () => {
   it('6. Shipping is initiated', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/shipping/order/${orderId}`,
+      url: `${apiUrl}/shipping-service/api/shipping/order/${orderId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -135,7 +135,7 @@ describe('E2E: Complete Checkout Flow', () => {
   it('7. User can view order history', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/orders`,
+      url: `${apiUrl}/order-service/api/orders`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);

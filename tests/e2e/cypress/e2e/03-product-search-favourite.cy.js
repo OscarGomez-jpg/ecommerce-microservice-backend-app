@@ -9,7 +9,7 @@ describe('E2E: Product Search and Favourite', () => {
   it('1. Browse all products', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/products`,
+      url: `${apiUrl}/product-service/api/products`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -34,7 +34,7 @@ describe('E2E: Product Search and Favourite', () => {
   it('2. View specific product details', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/products/${productId}`,
+      url: `${apiUrl}/product-service/api/products/${productId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -45,7 +45,7 @@ describe('E2E: Product Search and Favourite', () => {
   it('3. Browse products by category', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/products/category/${categoryId}`,
+      url: `${apiUrl}/product-service/api/products/category/${categoryId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -56,7 +56,7 @@ describe('E2E: Product Search and Favourite', () => {
   it('4. View all categories', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/categories`,
+      url: `${apiUrl}/product-service/api/categories`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -72,7 +72,7 @@ describe('E2E: Product Search and Favourite', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/favourites`,
+      url: `${apiUrl}/favourite-service/api/favourites`,
       body: favouriteData,
       failOnStatusCode: false,
       headers: {

@@ -15,7 +15,7 @@ describe('E2E: Payment and Refund Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/orders`,
+      url: `${apiUrl}/order-service/api/orders`,
       body: orderData,
       failOnStatusCode: false,
       headers: {
@@ -43,7 +43,7 @@ describe('E2E: Payment and Refund Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/payments`,
+      url: `${apiUrl}/payment-service/api/payments`,
       body: paymentData,
       failOnStatusCode: false,
       headers: {
@@ -69,7 +69,7 @@ describe('E2E: Payment and Refund Flow', () => {
 
     cy.request({
       method: 'PUT',
-      url: `${apiUrl}/api/payments/${paymentId}`,
+      url: `${apiUrl}/payment-service/api/payments/${paymentId}`,
       body: updateData,
       failOnStatusCode: false,
       headers: {
@@ -84,7 +84,7 @@ describe('E2E: Payment and Refund Flow', () => {
   it('4. View payment details', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/payments/${paymentId}`,
+      url: `${apiUrl}/payment-service/api/payments/${paymentId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -100,7 +100,7 @@ describe('E2E: Payment and Refund Flow', () => {
   it('5. View all payments', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/payments`,
+      url: `${apiUrl}/payment-service/api/payments`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -116,7 +116,7 @@ describe('E2E: Payment and Refund Flow', () => {
 
     cy.request({
       method: 'PUT',
-      url: `${apiUrl}/api/payments/${paymentId}`,
+      url: `${apiUrl}/payment-service/api/payments/${paymentId}`,
       body: refundData,
       failOnStatusCode: false,
       headers: {

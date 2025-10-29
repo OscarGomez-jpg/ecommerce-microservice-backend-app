@@ -18,7 +18,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
     @task
     def browse_products(self):
         """User browses all products"""
-        with self.client.get("/api/products", catch_response=True) as response:
+        with self.client.get("/product-service/api/products", catch_response=True) as response:
             if response.status_code == 200:
                 try:
                     products = response.json()
@@ -37,7 +37,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
     def view_product_details(self):
         """User views details of a specific product"""
         if self.product_id:
-            with self.client.get(f"/api/products/{self.product_id}", catch_response=True) as response:
+            with self.client.get(f"/product-service/api/products/{self.product_id}", catch_response=True) as response:
                 if response.status_code in [200, 404]:
                     response.success()
                 else:
@@ -51,7 +51,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
                 "userId": self.user_id,
                 "productId": self.product_id
             }
-            with self.client.post("/api/favourites",
+            with self.client.post("/favourite-service/api/favourites",
                                  json=payload,
                                  catch_response=True) as response:
                 if response.status_code in [200, 201, 400]:
@@ -66,7 +66,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
             "orderDesc": f"Locust test order {random.randint(1, 10000)}",
             "orderDate": "2024-01-15T10:30:00"
         }
-        with self.client.post("/api/orders",
+        with self.client.post("/order-service/api/orders",
                              json=payload,
                              catch_response=True) as response:
             if response.status_code in [200, 201]:
@@ -90,7 +90,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
         payload = {
             "isPayed": False
         }
-        with self.client.post("/api/payments",
+        with self.client.post("/payment-service/api/payments",
                              json=payload,
                              catch_response=True) as response:
             if response.status_code in [200, 201]:
@@ -115,7 +115,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
             payload = {
                 "isPayed": True
             }
-            with self.client.put(f"/api/payments/{self.payment_id}",
+            with self.client.put(f"/payment-service/api/payments/{self.payment_id}",
                                 json=payload,
                                 catch_response=True) as response:
                 if response.status_code in [200, 201, 404, 400]:
@@ -127,7 +127,7 @@ class EcommerceUserBehavior(SequentialTaskSet):
     def check_order_status(self):
         """User checks order status"""
         if self.order_id:
-            with self.client.get(f"/api/orders/{self.order_id}", catch_response=True) as response:
+            with self.client.get(f"/order-service/api/orders/{self.order_id}", catch_response=True) as response:
                 if response.status_code in [200, 404]:
                     response.success()
                 else:
@@ -144,18 +144,18 @@ class BrowsingUser(HttpUser):
     @task(10)
     def browse_products(self):
         """Browse all products"""
-        self.client.get("/api/products")
+        self.client.get("/product-service/api/products")
 
     @task(5)
     def view_product(self):
         """View a specific product"""
         product_id = random.randint(1, 20)
-        self.client.get(f"/api/products/{product_id}")
+        self.client.get(f"/product-service/api/products/{product_id}")
 
     @task(2)
     def view_categories(self):
         """Browse products by category"""
-        self.client.get("/api/products?category=electronics")
+        self.client.get("/product-service/api/products?category=electronics")
 
 
 class PurchasingUser(HttpUser):
@@ -177,24 +177,24 @@ class AdminUser(HttpUser):
     @task(5)
     def view_all_orders(self):
         """Admin views all orders"""
-        self.client.get("/api/orders")
+        self.client.get("/order-service/api/orders")
 
     @task(3)
     def view_all_payments(self):
         """Admin views all payments"""
-        self.client.get("/api/payments")
+        self.client.get("/payment-service/api/payments")
 
     @task(2)
     def view_all_users(self):
         """Admin views all users"""
-        self.client.get("/api/users")
+        self.client.get("/user-service/api/users")
 
     @task(4)
     def view_all_products(self):
         """Admin views all products"""
-        self.client.get("/api/products")
+        self.client.get("/product-service/api/products")
 
     @task(1)
     def view_shipping(self):
         """Admin views shipping information"""
-        self.client.get("/api/shipping")
+        self.client.get("/shipping-service/api/shipping")

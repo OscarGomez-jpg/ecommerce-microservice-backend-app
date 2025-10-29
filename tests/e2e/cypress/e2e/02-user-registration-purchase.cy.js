@@ -17,7 +17,7 @@ describe('E2E: User Registration and Purchase Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/users`,
+      url: `${apiUrl}/user-service/api/users`,
       body: userData,
       failOnStatusCode: false,
       headers: {
@@ -44,7 +44,7 @@ describe('E2E: User Registration and Purchase Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/users/login`,
+      url: `${apiUrl}/user-service/api/users/login`,
       body: loginData,
       failOnStatusCode: false,
       headers: {
@@ -59,7 +59,7 @@ describe('E2E: User Registration and Purchase Flow', () => {
   it('3. User searches for products', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/products`,
+      url: `${apiUrl}/product-service/api/products`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -82,7 +82,7 @@ describe('E2E: User Registration and Purchase Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/favourites`,
+      url: `${apiUrl}/favourite-service/api/favourites`,
       body: favouriteData,
       failOnStatusCode: false,
       headers: {
@@ -97,7 +97,7 @@ describe('E2E: User Registration and Purchase Flow', () => {
   it('5. User views their favourites', () => {
     cy.request({
       method: 'GET',
-      url: `${apiUrl}/api/favourites/user/${userId}`,
+      url: `${apiUrl}/favourite-service/api/favourites/user/${userId}`,
       failOnStatusCode: false
     }).then((response) => {
       expect(response.status).to.be.oneOf([200, 404]);
@@ -113,7 +113,7 @@ describe('E2E: User Registration and Purchase Flow', () => {
 
     cy.request({
       method: 'POST',
-      url: `${apiUrl}/api/orders`,
+      url: `${apiUrl}/order-service/api/orders`,
       body: orderData,
       failOnStatusCode: false,
       headers: {
