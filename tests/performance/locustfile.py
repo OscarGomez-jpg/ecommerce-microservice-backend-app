@@ -9,21 +9,39 @@ class EcommerceUserBehavior(SequentialTaskSet):
     """
 
     def on_start(self):
-        """Initialize user session"""
+        """Initialize user session and get real user IDs from API"""
         self.product_id = None
         self.order_id = None
         self.payment_id = None
-        self.user_id = random.randint(1, 100)
+
+        # Get real user IDs from the API
+        try:
+            response = self.client.get("/user-service/api/users", name="/user-service/api/users [on_start]")
+            if response.status_code == 200:
+                users = response.json()
+                if isinstance(users, list) and len(users) > 0:
+                    # Pick a random user from the list
+                    user = random.choice(users)
+                    self.user_id = user.get('userId', random.randint(1, 100))
+                else:
+                    self.user_id = random.randint(1, 100)
+            else:
+                self.user_id = random.randint(1, 100)
+        except:
+            # Fallback to random ID if API call fails
+            self.user_id = random.randint(1, 100)
 
     @task
     def browse_products(self):
-        """User browses all products"""
+        """User browses all products and picks a random one"""
         with self.client.get("/product-service/api/products", catch_response=True) as response:
             if response.status_code == 200:
                 try:
                     products = response.json()
                     if isinstance(products, list) and len(products) > 0:
-                        self.product_id = products[0].get('productId', 1)
+                        # Pick a random product from the list (more realistic)
+                        product = random.choice(products)
+                        self.product_id = product.get('productId', 1)
                     else:
                         self.product_id = 1
                     response.success()
@@ -140,6 +158,19 @@ class BrowsingUser(HttpUser):
     """
     wait_time = between(1, 3)
     weight = 3
+    product_ids = []  # Cache of real product IDs
+
+    def on_start(self):
+        """Get real product IDs from API"""
+        try:
+            response = self.client.get("/product-service/api/products", name="/product-service/api/products [on_start]")
+            if response.status_code == 200:
+                products = response.json()
+                if isinstance(products, list) and len(products) > 0:
+                    # Store all product IDs
+                    self.product_ids = [p.get('productId') for p in products if 'productId' in p]
+        except:
+            pass
 
     @task(10)
     def browse_products(self):
@@ -148,8 +179,14 @@ class BrowsingUser(HttpUser):
 
     @task(5)
     def view_product(self):
-        """View a specific product"""
-        product_id = random.randint(1, 20)
+        """View a specific product using real IDs"""
+        if self.product_ids:
+            # Use a real product ID from cache
+            product_id = random.choice(self.product_ids)
+        else:
+            # Fallback to random ID
+            product_id = random.randint(1, 20)
+
         with self.client.get(f"/product-service/api/products/{product_id}", catch_response=True) as response:
             # Accept 400 as valid (product might not exist)
             if response.status_code in [200, 400, 404]:

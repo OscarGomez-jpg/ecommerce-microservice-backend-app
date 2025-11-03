@@ -260,7 +260,7 @@ spec:
 
         stage('Test All Services') {
             when {
-                expression { params.SERVICE_NAME == 'ALL' && params.RUN_SONAR == true }
+                expression { params.SERVICE_NAME == 'ALL' }
             }
             steps {
                 container('maven') {
@@ -523,8 +523,8 @@ spec:
             }
             post {
                 always {
-                    // Archivar reporte HTML y screenshots
-                    archiveArtifacts artifacts: 'tests/e2e/cypress/reports/**/*.html', allowEmptyArchive: true
+                    // Archivar reporte completo (HTML + JS + CSS) y screenshots
+                    archiveArtifacts artifacts: 'tests/e2e/cypress/reports/**/*', allowEmptyArchive: true
                     archiveArtifacts artifacts: 'tests/e2e/cypress/screenshots/**/*.png', allowEmptyArchive: true
                 }
             }
