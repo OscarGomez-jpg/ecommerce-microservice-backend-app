@@ -84,8 +84,8 @@ spec:
         )
         booleanParam(
             name: 'DEPLOY_TO_MINIKUBE',
-            defaultValue: true,
-            description: 'Desplegar en Minikube después de construir'
+            defaultValue: false,
+            description: 'Desplegar en Minikube después de construir (master siempre despliega, ignorando este parámetro)'
         )
         booleanParam(
             name: 'RUN_E2E_TESTS',
