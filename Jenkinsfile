@@ -388,14 +388,29 @@ spec:
                 container('kubectl') {
                     script {
                         if (params.SERVICE_NAME == 'ALL') {
-                            echo "🚀 Desplegando TODOS los servicios en Minikube..."
+                            echo """
+                            ================================================
+                            🚀 DESPLEGANDO TODOS LOS SERVICIOS
+                            ================================================
+                            Ambiente: ${env.ENVIRONMENT}
+                            Namespace: ${env.K8S_NAMESPACE}
+                            ================================================
+                            """
 
-                            // PASO 1: Desplegar service-discovery PRIMERO (Eureka)
-                            echo "📍 Paso 1: Desplegando service-discovery (Eureka)..."
+                            // PASO 1: Aplicar Zipkin (si no existe)
+                            echo "📍 Paso 1: Desplegando Zipkin..."
                             sh """
-                                kubectl scale deployment service-discovery --replicas=0 -n ${env.K8S_NAMESPACE} || true
-                                sleep 5
-                                kubectl scale deployment service-discovery --replicas=1 -n ${env.K8S_NAMESPACE}
+                                kubectl apply -f k8s-minikube/01-zipkin.yaml --namespace=${env.K8S_NAMESPACE} --dry-run=client -o yaml | \\
+                                kubectl apply -f - || true
+                            """
+
+                            // PASO 2: Desplegar service-discovery PRIMERO (Eureka)
+                            echo "📍 Paso 2: Desplegando service-discovery (Eureka)..."
+                            sh """
+                                # Modificar namespace en el YAML y aplicar
+                                cat k8s-minikube/02-service-discovery.yaml | \\
+                                sed 's/namespace: ecommerce/namespace: ${env.K8S_NAMESPACE}/g' | \\
+                                kubectl apply -f -
                             """
 
                             // Esperar a que Eureka esté READY
@@ -410,46 +425,75 @@ spec:
                             echo "⏳ Esperando 30s para que Eureka se estabilice..."
                             sleep 30
 
-                            // PASO 2: Desplegar el resto de servicios
-                            echo "📍 Paso 2: Desplegando resto de servicios..."
-                            def services = ['api-gateway', 'user-service', 'product-service', 'order-service']
+                            // PASO 3: Desplegar el resto de servicios
+                            echo "📍 Paso 3: Desplegando resto de servicios..."
+                            def serviceFiles = [
+                                '03-api-gateway.yaml',
+                                '04-user-service.yaml',
+                                '05-product-service.yaml',
+                                '06-order-service.yaml'
+                            ]
 
-                            for (service in services) {
-                                echo "🚀 Desplegando ${service}..."
+                            for (file in serviceFiles) {
+                                echo "🚀 Aplicando ${file}..."
                                 sh """
-                                    kubectl scale deployment ${service} --replicas=0 -n ${env.K8S_NAMESPACE} || true
-                                    sleep 3
-                                    kubectl scale deployment ${service} --replicas=1 -n ${env.K8S_NAMESPACE}
+                                    cat k8s-minikube/${file} | \\
+                                    sed 's/namespace: ecommerce/namespace: ${env.K8S_NAMESPACE}/g' | \\
+                                    kubectl apply -f -
                                 """
                             }
 
                             // Esperar a que todos estén desplegados
                             echo "⏳ Esperando a que todos los servicios estén desplegados..."
+                            def services = ['api-gateway', 'user-service', 'product-service', 'order-service']
                             for (service in services) {
                                 sh """
                                     kubectl rollout status deployment/${service} -n ${env.K8S_NAMESPACE} --timeout=300s || true
                                 """
                             }
 
-                            echo "✅ Todos los servicios desplegados"
+                            echo "✅ Todos los servicios desplegados exitosamente en ${env.K8S_NAMESPACE}"
 
                         } else {
                             // Despliegue de servicio individual
-                            echo "🚀 Desplegando ${params.SERVICE_NAME} en Minikube..."
-
-                            // Escalar a 0 para liberar recursos
-                            sh """
-                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ${env.K8S_NAMESPACE} || true
-                                sleep 5
+                            echo """
+                            ================================================
+                            🚀 DESPLEGANDO SERVICIO INDIVIDUAL
+                            ================================================
+                            Servicio: ${params.SERVICE_NAME}
+                            Ambiente: ${env.ENVIRONMENT}
+                            Namespace: ${env.K8S_NAMESPACE}
+                            ================================================
                             """
 
-                            // Escalar a 1 con nueva imagen
-                            sh """
-                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ${env.K8S_NAMESPACE}
-                                kubectl rollout status deployment/${params.SERVICE_NAME} -n ${env.K8S_NAMESPACE} --timeout=300s
-                            """
+                            // Mapeo de SERVICE_NAME a archivo YAML
+                            def serviceFileMap = [
+                                'service-discovery': '02-service-discovery.yaml',
+                                'api-gateway': '03-api-gateway.yaml',
+                                'user-service': '04-user-service.yaml',
+                                'product-service': '05-product-service.yaml',
+                                'order-service': '06-order-service.yaml'
+                            ]
 
-                            echo "✅ Despliegue completado"
+                            def yamlFile = serviceFileMap[params.SERVICE_NAME]
+
+                            if (yamlFile) {
+                                echo "📍 Aplicando manifest: ${yamlFile}..."
+                                sh """
+                                    cat k8s-minikube/${yamlFile} | \\
+                                    sed 's/namespace: ecommerce/namespace: ${env.K8S_NAMESPACE}/g' | \\
+                                    kubectl apply -f -
+                                """
+
+                                echo "⏳ Esperando a que el deployment esté listo..."
+                                sh """
+                                    kubectl rollout status deployment/${params.SERVICE_NAME} -n ${env.K8S_NAMESPACE} --timeout=300s || true
+                                """
+
+                                echo "✅ Despliegue de ${params.SERVICE_NAME} completado"
+                            } else {
+                                error "❌ No se encontró manifest para el servicio: ${params.SERVICE_NAME}"
+                            }
                         }
                     }
                 }
