@@ -561,7 +561,9 @@ spec:
                         reportDir: 'tests/performance/reports',
                         reportFiles: 'locust-report.html',
                         reportName: 'Locust Load Test Report',
-                        allowMissing: true
+                        allowMissing: true,
+                        keepAll: true,
+                        alwaysLinkToLastBuild: true
                     ])
                     archiveArtifacts artifacts: 'tests/performance/reports/locust-results*.csv', allowEmptyArchive: true
                 }
