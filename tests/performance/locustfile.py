@@ -61,21 +61,22 @@ class EcommerceUserBehavior(SequentialTaskSet):
                 else:
                     response.failure(f"Failed to get product details: {response.status_code}")
 
-    @task
-    def add_to_favourites(self):
-        """User adds product to favourites"""
-        if self.product_id:
-            payload = {
-                "userId": self.user_id,
-                "productId": self.product_id
-            }
-            with self.client.post("/favourite-service/api/favourites",
-                                 json=payload,
-                                 catch_response=True) as response:
-                if response.status_code in [200, 201, 400, 503]:
-                    response.success()
-                else:
-                    response.failure(f"Failed to add favourite: {response.status_code}")
+    # COMMENTED OUT: favourite-service not deployed
+    # @task
+    # def add_to_favourites(self):
+    #     """User adds product to favourites"""
+    #     if self.product_id:
+    #         payload = {
+    #             "userId": self.user_id,
+    #             "productId": self.product_id
+    #         }
+    #         with self.client.post("/favourite-service/api/favourites",
+    #                              json=payload,
+    #                              catch_response=True) as response:
+    #             if response.status_code in [200, 201, 400, 503]:
+    #                 response.success()
+    #             else:
+    #                 response.failure(f"Failed to add favourite: {response.status_code}")
 
     @task
     def create_order(self):
@@ -102,44 +103,46 @@ class EcommerceUserBehavior(SequentialTaskSet):
                 self.order_id = 1
                 response.failure(f"Failed to create order: {response.status_code}")
 
-    @task
-    def process_payment(self):
-        """User processes payment for order"""
-        payload = {
-            "isPayed": False
-        }
-        with self.client.post("/payment-service/api/payments",
-                             json=payload,
-                             catch_response=True) as response:
-            if response.status_code in [200, 201]:
-                try:
-                    payment = response.json()
-                    self.payment_id = payment.get('paymentId', 1)
-                    response.success()
-                except:
-                    self.payment_id = 1
-                    response.success()
-            elif response.status_code in [400, 503]:
-                self.payment_id = 1
-                response.success()
-            else:
-                self.payment_id = 1
-                response.failure(f"Failed to process payment: {response.status_code}")
+    # COMMENTED OUT: payment-service not deployed
+    # @task
+    # def process_payment(self):
+    #     """User processes payment for order"""
+    #     payload = {
+    #         "isPayed": False
+    #     }
+    #     with self.client.post("/payment-service/api/payments",
+    #                          json=payload,
+    #                          catch_response=True) as response:
+    #         if response.status_code in [200, 201]:
+    #             try:
+    #                 payment = response.json()
+    #                 self.payment_id = payment.get('paymentId', 1)
+    #                 response.success()
+    #             except:
+    #                 self.payment_id = 1
+    #                 response.success()
+    #         elif response.status_code in [400, 503]:
+    #             self.payment_id = 1
+    #             response.success()
+    #         else:
+    #             self.payment_id = 1
+    #             response.failure(f"Failed to process payment: {response.status_code}")
 
-    @task
-    def complete_payment(self):
-        """User completes the payment"""
-        if self.payment_id:
-            payload = {
-                "isPayed": True
-            }
-            with self.client.put(f"/payment-service/api/payments/{self.payment_id}",
-                                json=payload,
-                                catch_response=True) as response:
-                if response.status_code in [200, 201, 404, 400, 503]:
-                    response.success()
-                else:
-                    response.failure(f"Failed to complete payment: {response.status_code}")
+    # COMMENTED OUT: payment-service not deployed
+    # @task
+    # def complete_payment(self):
+    #     """User completes the payment"""
+    #     if self.payment_id:
+    #         payload = {
+    #             "isPayed": True
+    #         }
+    #         with self.client.put(f"/payment-service/api/payments/{self.payment_id}",
+    #                             json=payload,
+    #                             catch_response=True) as response:
+    #             if response.status_code in [200, 201, 404, 400, 503]:
+    #                 response.success()
+    #             else:
+    #                 response.failure(f"Failed to complete payment: {response.status_code}")
 
     @task
     def check_order_status(self):
@@ -221,15 +224,16 @@ class AdminUser(HttpUser):
         """Admin views all orders"""
         self.client.get("/order-service/api/orders")
 
-    @task(3)
-    def view_all_payments(self):
-        """Admin views all payments"""
-        with self.client.get("/payment-service/api/payments", catch_response=True) as response:
-            # Accept 503 (service not deployed)
-            if response.status_code in [200, 404, 503]:
-                response.success()
-            else:
-                response.failure(f"Unexpected status: {response.status_code}")
+    # COMMENTED OUT: payment-service not deployed
+    # @task(3)
+    # def view_all_payments(self):
+    #     """Admin views all payments"""
+    #     with self.client.get("/payment-service/api/payments", catch_response=True) as response:
+    #         # Accept 503 (service not deployed)
+    #         if response.status_code in [200, 404, 503]:
+    #             response.success()
+    #         else:
+    #             response.failure(f"Unexpected status: {response.status_code}")
 
     @task(2)
     def view_all_users(self):
@@ -241,12 +245,13 @@ class AdminUser(HttpUser):
         """Admin views all products"""
         self.client.get("/product-service/api/products")
 
-    @task(1)
-    def view_shipping(self):
-        """Admin views shipping information"""
-        with self.client.get("/shipping-service/api/shipping", catch_response=True) as response:
-            # Accept 503 (service not deployed)
-            if response.status_code in [200, 404, 503]:
-                response.success()
-            else:
-                response.failure(f"Unexpected status: {response.status_code}")
+    # COMMENTED OUT: shipping-service not deployed
+    # @task(1)
+    # def view_shipping(self):
+    #     """Admin views shipping information"""
+    #     with self.client.get("/shipping-service/api/shipping", catch_response=True) as response:
+    #         # Accept 503 (service not deployed)
+    #         if response.status_code in [200, 404, 503]:
+    #             response.success()
+    #         else:
+    #             response.failure(f"Unexpected status: {response.status_code}")

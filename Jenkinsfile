@@ -103,13 +103,29 @@ spec:
         SONAR_HOST_URL = 'http://sonarqube-sonarqube:9000'
         MINIKUBE_IP = '192.168.49.2'  // IP fijo de Minikube local
         // Docker usará el socket montado en /var/run/docker.sock
+
+        // Detección automática de ambiente basado en rama
+        K8S_NAMESPACE = "${env.BRANCH_NAME == 'master' ? 'ecommerce-prod' : 'ecommerce-dev'}"
+        ENVIRONMENT = "${env.BRANCH_NAME == 'master' ? 'production' : 'development'}"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo "🔄 Clonando código del repositorio..."
-                checkout scm
+                script {
+                    echo "🔄 Clonando código del repositorio..."
+                    checkout scm
+
+                    echo """
+                    ================================================
+                    🌍 AMBIENTE DETECTADO
+                    ================================================
+                    Rama: ${env.BRANCH_NAME ?: 'master'}
+                    Ambiente: ${env.ENVIRONMENT}
+                    Namespace K8s: ${env.K8S_NAMESPACE}
+                    ================================================
+                    """
+                }
             }
         }
 
@@ -358,7 +374,15 @@ spec:
 
         stage('Deploy to Minikube') {
             when {
-                expression { params.DEPLOY_TO_MINIKUBE == true }
+                expression {
+                    // En dev: Solo deploy si explícitamente se solicita
+                    // En master (prod): Siempre deploy
+                    if (env.BRANCH_NAME == 'master') {
+                        return true
+                    } else {
+                        return params.DEPLOY_TO_MINIKUBE == true
+                    }
+                }
             }
             steps {
                 container('kubectl') {
@@ -369,16 +393,16 @@ spec:
                             // PASO 1: Desplegar service-discovery PRIMERO (Eureka)
                             echo "📍 Paso 1: Desplegando service-discovery (Eureka)..."
                             sh """
-                                kubectl scale deployment service-discovery --replicas=0 -n ecommerce || true
+                                kubectl scale deployment service-discovery --replicas=0 -n ${env.K8S_NAMESPACE} || true
                                 sleep 5
-                                kubectl scale deployment service-discovery --replicas=1 -n ecommerce
+                                kubectl scale deployment service-discovery --replicas=1 -n ${env.K8S_NAMESPACE}
                             """
 
                             // Esperar a que Eureka esté READY
                             echo "⏳ Esperando a que service-discovery esté READY..."
                             sh """
-                                kubectl rollout status deployment/service-discovery -n ecommerce --timeout=300s
-                                kubectl wait --for=condition=ready pod -l app=service-discovery -n ecommerce --timeout=300s
+                                kubectl rollout status deployment/service-discovery -n ${env.K8S_NAMESPACE} --timeout=300s
+                                kubectl wait --for=condition=ready pod -l app=service-discovery -n ${env.K8S_NAMESPACE} --timeout=300s
                             """
                             echo "✅ service-discovery está READY"
 
@@ -393,9 +417,9 @@ spec:
                             for (service in services) {
                                 echo "🚀 Desplegando ${service}..."
                                 sh """
-                                    kubectl scale deployment ${service} --replicas=0 -n ecommerce || true
+                                    kubectl scale deployment ${service} --replicas=0 -n ${env.K8S_NAMESPACE} || true
                                     sleep 3
-                                    kubectl scale deployment ${service} --replicas=1 -n ecommerce
+                                    kubectl scale deployment ${service} --replicas=1 -n ${env.K8S_NAMESPACE}
                                 """
                             }
 
@@ -403,7 +427,7 @@ spec:
                             echo "⏳ Esperando a que todos los servicios estén desplegados..."
                             for (service in services) {
                                 sh """
-                                    kubectl rollout status deployment/${service} -n ecommerce --timeout=300s || true
+                                    kubectl rollout status deployment/${service} -n ${env.K8S_NAMESPACE} --timeout=300s || true
                                 """
                             }
 
@@ -415,14 +439,14 @@ spec:
 
                             // Escalar a 0 para liberar recursos
                             sh """
-                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ecommerce || true
+                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=0 -n ${env.K8S_NAMESPACE} || true
                                 sleep 5
                             """
 
                             // Escalar a 1 con nueva imagen
                             sh """
-                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ecommerce
-                                kubectl rollout status deployment/${params.SERVICE_NAME} -n ecommerce --timeout=300s
+                                kubectl scale deployment ${params.SERVICE_NAME} --replicas=1 -n ${env.K8S_NAMESPACE}
+                                kubectl rollout status deployment/${params.SERVICE_NAME} -n ${env.K8S_NAMESPACE} --timeout=300s
                             """
 
                             echo "✅ Despliegue completado"
@@ -446,15 +470,15 @@ spec:
                             for (service in allServices) {
                                 echo "🔍 Verificando ${service}..."
                                 sh """
-                                    kubectl get pods -n ecommerce -l app=${service}
-                                    kubectl wait --for=condition=ready pod -l app=${service} -n ecommerce --timeout=300s || echo "⚠️ ${service} no está ready aún"
+                                    kubectl get pods -n ${env.K8S_NAMESPACE} -l app=${service}
+                                    kubectl wait --for=condition=ready pod -l app=${service} -n ${env.K8S_NAMESPACE} --timeout=300s || echo "⚠️ ${service} no está ready aún"
                                 """
                             }
 
                             echo "📊 Estado final de todos los servicios:"
                             sh """
-                                kubectl get pods -n ecommerce
-                                kubectl get svc -n ecommerce
+                                kubectl get pods -n ${env.K8S_NAMESPACE}
+                                kubectl get svc -n ${env.K8S_NAMESPACE}
                             """
 
                             echo "✅ Verificación completada para todos los servicios"
@@ -462,13 +486,13 @@ spec:
                         } else {
                             echo "🔍 Verificando despliegue..."
                             sh """
-                                kubectl get pods -n ecommerce -l app=${params.SERVICE_NAME}
-                                kubectl get svc -n ecommerce ${params.SERVICE_NAME}
+                                kubectl get pods -n ${env.K8S_NAMESPACE} -l app=${params.SERVICE_NAME}
+                                kubectl get svc -n ${env.K8S_NAMESPACE} ${params.SERVICE_NAME}
                             """
 
                             // Esperar a que el pod esté ready
                             sh """
-                                kubectl wait --for=condition=ready pod -l app=${params.SERVICE_NAME} -n ecommerce --timeout=300s
+                                kubectl wait --for=condition=ready pod -l app=${params.SERVICE_NAME} -n ${env.K8S_NAMESPACE} --timeout=300s
                             """
 
                             echo "✅ ${params.SERVICE_NAME} desplegado y funcionando correctamente"

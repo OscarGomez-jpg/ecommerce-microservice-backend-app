@@ -1,0 +1,16 @@
+---
+# Namespace para ambiente de desarrollo
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-dev
+  labels:
+    environment: development
+---
+# Namespace para ambiente de producción
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-prod
+  labels:
+    environment: production
